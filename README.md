@@ -187,3 +187,191 @@ TravelMateAI/
 │   └── TravelMateAI-ER-Diagram.drawio   # Entity-Relationship Diagram
 ├── START.bat               # Windows: start backend + frontend
 └── Open ER Diagram.bat     # Windows: open ERD in diagrams.net
+```
+
+---
+
+## Backend architecture
+
+The backend follows a **layered architecture**:
+
+```
+HTTP Request
+    ↓
+Routes (routes/index.js)
+    ↓
+Controllers (controllers/*)     — parse request, send response
+    ↓
+Services (services/*)           — business rules, validation
+    ↓
+Repositories (repositories/*)   — SQL queries, SQLite access
+    ↓
+Database (data/travelmate.db)
+```
+
+- **No SQL in controllers** — all database access goes through repositories.
+- **Middleware:** `requireAuth` (JWT) and `requireRole('admin')` protect sensitive routes.
+- **Real-time:** Socket.IO events (`identify`, `message`) require a valid access token.
+
+---
+
+## Database & ERD
+
+- **Engine:** SQLite via `better-sqlite3`
+- **File:** `backend/data/travelmate.db`
+- **Schema version:** 3 (`user_version: 3`)
+- **24 business tables:**
+  - **10 platform (mandatory):** users, roles, user_roles, permissions, role_permissions, refresh_tokens, audit_logs, notifications, settings, files
+  - **14 domain:** destinations, trip_plans, itinerary_items, booking_suppliers, bookings, invoices, payments, guides, travel_groups, group_members, chat_rooms, messages, reviews, favorites
+- **Normalization:** 3NF, foreign keys, indexes, audit columns (`created_at`, `updated_at`, `created_by`, `updated_by`)
+
+### Open the ERD
+
+| Method | Command / action |
+|--------|------------------|
+| Windows | Double-click **`Open ER Diagram.bat`** |
+| npm | `npm run er:open` |
+| Regenerate from schema | `npm run er:diagram` |
+| Manual | Open `docs/TravelMateAI-ER-Diagram.drawio` in [diagrams.net](https://app.diagrams.net/) |
+
+---
+
+## NoSQL integration (Redis)
+
+TravelMate AI uses a **polyglot persistence** model:
+
+| Store | Role | Why not SQLite alone? |
+|-------|------|------------------------|
+| **SQLite** | System of record — users, bookings, trips, RBAC, audit | Relational integrity, 3NF, transactions |
+| **Redis** | Ephemeral **online presence** for Socket.IO chat | Per-connection state changes every second; no FK value; must survive independently of a single Node process |
+
+**Implementation:** `backend/services/presenceStore.js` — `HSET` / `HDEL` / `HGETALL` on key `travelmate:online_users`.
+
+**Flow:** User connects → `identify` event → Redis stores `{ email, socketId }` → disconnect removes entry → `presence` broadcast to all clients.
+
+**Graceful degradation:** If Redis is unavailable, chat still works; the online-users list may be empty until Redis is started.
+
+---
+
+## Frontend state & performance
+
+**Redux Toolkit** (`src/store/`) centralizes shared UI state:
+
+| Slice | Purpose | Used by |
+|-------|---------|---------|
+| `ui` | Menu, backend health, active trip ID, AI panel | `App`, `Dashboard`, `TripPlanner` |
+| `notifications` | Live alerts + unread count | `NotificationBell`, `Dashboard` (via `useNotificationsSync`) |
+| `search` | Search filters persist across navigation | `SearchPage` |
+
+**Lazy loading:** All route pages load with `React.lazy()` + `Suspense` in `App.tsx`; `AiRecommendation` is also lazy-loaded on the dashboard.
+
+---
+
+## API documentation
+
+All **95 REST endpoints** are documented in OpenAPI 3.0 format.
+
+| Resource | Location |
+|----------|----------|
+| **OpenAPI spec (JSON)** | `backend/openapi.json` |
+| **Swagger UI (interactive)** | [http://localhost:4000/api/docs](http://localhost:4000/api/docs) (backend must be running) |
+| **Raw spec URL** | [http://localhost:4000/api/openapi.json](http://localhost:4000/api/openapi.json) |
+
+### Import into Postman
+
+1. Open Postman → **Import** → **File**
+2. Select `backend/openapi.json`
+3. Set collection variable `baseUrl` = `http://localhost:4000`
+4. Call `POST /api/auth/login`, then set `Authorization: Bearer {{accessToken}}`
+
+### Regenerate OpenAPI from routes
+
+```bash
+cd backend
+npm run docs:openapi
+```
+
+### Endpoint groups
+
+| Tag | Examples |
+|-----|----------|
+| Authentication | login, register, refresh, profile update |
+| Itinerary | plans, items, AI generate |
+| Chat | rooms, messages, history |
+| Bookings | CRUD + suppliers |
+| RBAC | roles, permissions, user-roles |
+| Billing | invoices, payments |
+| Platform | settings, files, guides, travel groups |
+| Search & Reports | full-text search, export/import, summary |
+| Audit | audit-logs (admin) |
+
+**Public endpoints (no JWT):** `GET /api/health`, `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/refresh`, `GET /api/destinations`
+
+---
+
+## Security
+
+| Feature | Implementation |
+|---------|----------------|
+| Authentication | JWT access tokens (`Authorization: Bearer …`) |
+| Refresh tokens | Stored as SHA-256 hash in `refresh_tokens` table |
+| Passwords | bcrypt hashing |
+| Authorization | RBAC via `roles` / `user_roles` / `permissions` |
+| SQL injection | Parameterized queries (`better-sqlite3` prepared statements) |
+| CORS | Whitelist from `CORS_ORIGINS` + localhost in development |
+| Secrets | `.env` file (never committed) |
+| Socket.IO | JWT verified on `identify` and `message` events |
+
+---
+
+## Verification scripts
+
+Run from `backend/` to validate academic requirements:
+
+```bash
+cd backend
+
+node scripts/compliance_check.js      # Database: 24 tables, 3NF, FK, audit columns
+node scripts/architecture_check.js    # Layered architecture (no SQL in controllers)
+node scripts/security_check.js        # JWT, bcrypt, CORS, refresh token hashing
+```
+
+All three should report **pass** before presentation.
+
+---
+
+## Helpful scripts
+
+| Command | Location | Description |
+|---------|----------|-------------|
+| `npm start` | root | Start backend + frontend |
+| `npm run backend` | root | Backend only |
+| `npm run dev` | root | Frontend only |
+| `npm run kill-ports` | root | Free ports 4000, 5173, 5174 |
+| `npm run er:open` | root | Open ERD diagram |
+| `npm run er:diagram` | root | Regenerate ERD from schema |
+| `npm run save-sample-backend` | root | Save sample trip plan via API |
+| `npm run docs:openapi` | backend | Regenerate OpenAPI spec |
+| `npm run db:check` | backend | Quick database sanity check |
+
+---
+
+## Pages (frontend)
+
+- Landing page
+- Dashboard
+- Trip Planner (AI itinerary)
+- Bookings
+- Destinations
+- Reports
+- Live chat
+- Sign-in / registration
+
+---
+
+## Notes
+
+- Real-time chat uses **Socket.IO**; send `accessToken` on the `identify` event.
+- Search supports optional **full-text search (FTS)** via `?fts=true`.
+- The app uses real user data only — no mock payloads are loaded automatically.
+- For production, set `NODE_ENV=production` and a strong `JWT_SECRET`.
