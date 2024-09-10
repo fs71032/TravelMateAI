@@ -1,0 +1,35 @@
+{
+  "name": "travelmate-ai-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node scripts/kill_port.js && node server.js",
+    "start:clean": "node scripts/kill_port.js && node server.js",
+    "kill-port": "node scripts/kill_port.js",
+    "dev": "nodemon server.js",
+    "save-sample": "node scripts/save_sample_plan.js",
+    "db:check": "node scripts/db_check.js",
+    "db:browse": "node scripts/db_browse_copy.js",
+    "db:sync-destinations": "node scripts/sync_destinations.js",
+    "db:backfill-audit": "node scripts/backfill_audit_fields.js",
+    "db:er-diagram": "node scripts/generate_er_diagram.js",
+    "docs:openapi": "node scripts/generate_openapi.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "ioredis": "^5.11.1",
+    "jsonwebtoken": "^9.0.2",
+    "socket.io": "^4.8.1",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
