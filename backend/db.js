@@ -496,3 +496,169 @@ function initSchema() {
   ensureColumn('guides', 'created_by', 'ALTER TABLE guides ADD COLUMN created_by TEXT');
   ensureColumn('guides', 'updated_by', 'ALTER TABLE guides ADD COLUMN updated_by TEXT');
   ensureColumn('guides', 'updated_at', 'ALTER TABLE guides ADD COLUMN updated_at TEXT');
+  ensureColumn('travel_groups', 'created_by', 'ALTER TABLE travel_groups ADD COLUMN created_by TEXT');
+  ensureColumn('travel_groups', 'updated_by', 'ALTER TABLE travel_groups ADD COLUMN updated_by TEXT');
+  ensureColumn('travel_groups', 'updated_at', 'ALTER TABLE travel_groups ADD COLUMN updated_at TEXT');
+  ensureColumn('booking_suppliers', 'created_by', 'ALTER TABLE booking_suppliers ADD COLUMN created_by TEXT');
+  ensureColumn('booking_suppliers', 'updated_by', 'ALTER TABLE booking_suppliers ADD COLUMN updated_by TEXT');
+  ensureColumn('booking_suppliers', 'updated_at', 'ALTER TABLE booking_suppliers ADD COLUMN updated_at TEXT');
+  ensureColumn('itinerary_items', 'created_by', 'ALTER TABLE itinerary_items ADD COLUMN created_by TEXT');
+  ensureColumn('itinerary_items', 'updated_by', 'ALTER TABLE itinerary_items ADD COLUMN updated_by TEXT');
+  ensureColumn('itinerary_items', 'created_at', 'ALTER TABLE itinerary_items ADD COLUMN created_at TEXT');
+  ensureColumn('itinerary_items', 'updated_at', 'ALTER TABLE itinerary_items ADD COLUMN updated_at TEXT');
+  ensureColumn('invoices', 'created_by', 'ALTER TABLE invoices ADD COLUMN created_by TEXT');
+  ensureColumn('invoices', 'updated_by', 'ALTER TABLE invoices ADD COLUMN updated_by TEXT');
+  ensureColumn('invoices', 'updated_at', 'ALTER TABLE invoices ADD COLUMN updated_at TEXT');
+  ensureColumn('payments', 'created_by', 'ALTER TABLE payments ADD COLUMN created_by TEXT');
+  ensureColumn('payments', 'updated_by', 'ALTER TABLE payments ADD COLUMN updated_by TEXT');
+  ensureColumn('payments', 'updated_at', 'ALTER TABLE payments ADD COLUMN updated_at TEXT');
+  ensureColumn('files', 'created_by', 'ALTER TABLE files ADD COLUMN created_by TEXT');
+  ensureColumn('files', 'updated_by', 'ALTER TABLE files ADD COLUMN updated_by TEXT');
+  ensureColumn('files', 'created_at', 'ALTER TABLE files ADD COLUMN created_at TEXT');
+  ensureColumn('files', 'updated_at', 'ALTER TABLE files ADD COLUMN updated_at TEXT');
+  ensureColumn('reviews', 'created_by', 'ALTER TABLE reviews ADD COLUMN created_by TEXT');
+  ensureColumn('reviews', 'updated_by', 'ALTER TABLE reviews ADD COLUMN updated_by TEXT');
+  ensureColumn('reviews', 'updated_at', 'ALTER TABLE reviews ADD COLUMN updated_at TEXT');
+  ensureColumn('favorites', 'created_by', 'ALTER TABLE favorites ADD COLUMN created_by TEXT');
+  ensureColumn('favorites', 'updated_by', 'ALTER TABLE favorites ADD COLUMN updated_by TEXT');
+  ensureColumn('favorites', 'updated_at', 'ALTER TABLE favorites ADD COLUMN updated_at TEXT');
+  ensureColumn('group_members', 'created_by', 'ALTER TABLE group_members ADD COLUMN created_by TEXT');
+  ensureColumn('group_members', 'updated_by', 'ALTER TABLE group_members ADD COLUMN updated_by TEXT');
+  ensureColumn('group_members', 'created_at', 'ALTER TABLE group_members ADD COLUMN created_at TEXT');
+  ensureColumn('group_members', 'updated_at', 'ALTER TABLE group_members ADD COLUMN updated_at TEXT');
+  ensureColumn('audit_logs', 'created_by', 'ALTER TABLE audit_logs ADD COLUMN created_by TEXT');
+  ensureColumn('audit_logs', 'updated_by', 'ALTER TABLE audit_logs ADD COLUMN updated_by TEXT');
+  ensureColumn('audit_logs', 'created_at', 'ALTER TABLE audit_logs ADD COLUMN created_at TEXT');
+  ensureColumn('audit_logs', 'updated_at', 'ALTER TABLE audit_logs ADD COLUMN updated_at TEXT');
+
+  pruneUnusedTables();
+
+  const { migrateTo3NF } = require('./migrations/to3nf');
+  migrateTo3NF(db);
+
+  const { migrateToSpec } = require('./migrations/specCompliance');
+  migrateToSpec(db);
+}
+
+function initFts() {
+  db.exec(`
+    DROP TABLE IF EXISTS destinations_fts;
+    DROP TABLE IF EXISTS trip_plans_fts;
+    DROP TABLE IF EXISTS messages_fts;
+
+    CREATE VIRTUAL TABLE destinations_fts USING fts5(id UNINDEXED, name, description);
+    CREATE VIRTUAL TABLE trip_plans_fts USING fts5(id UNINDEXED, name, destination, custom_prompt, items_text);
+    CREATE VIRTUAL TABLE messages_fts USING fts5(id UNINDEXED, room, from_email, to_email, content);
+
+    DROP TRIGGER IF EXISTS destinations_ai;
+    CREATE TRIGGER destinations_ai AFTER INSERT ON destinations BEGIN
+      INSERT INTO destinations_fts(rowid, id, name, description) VALUES (new.rowid, new.id, new.name, new.description);
+    END;
+    DROP TRIGGER IF EXISTS destinations_au;
+    CREATE TRIGGER destinations_au AFTER UPDATE ON destinations BEGIN
+      UPDATE destinations_fts SET id = new.id, name = new.name, description = new.description WHERE rowid = old.rowid;
+    END;
+    DROP TRIGGER IF EXISTS destinations_ad;
+    CREATE TRIGGER destinations_ad AFTER DELETE ON destinations BEGIN
+      DELETE FROM destinations_fts WHERE rowid = old.rowid;
+    END;
+
+    DROP TRIGGER IF EXISTS trip_plans_ai;
+    CREATE TRIGGER trip_plans_ai AFTER INSERT ON trip_plans BEGIN
+      INSERT INTO trip_plans_fts(rowid, id, name, destination, custom_prompt, items_text)
+      VALUES (
+        new.rowid,
+        new.id,
+        new.name,
+        COALESCE((SELECT name FROM destinations WHERE id = new.destination_id), ''),
+        new.custom_prompt,
+        COALESCE((SELECT group_concat(title || ' ' || COALESCE(details, ''), ' ') FROM itinerary_items WHERE trip_plan_id = new.id), '')
+      );
+    END;
+    DROP TRIGGER IF EXISTS trip_plans_au;
+    CREATE TRIGGER trip_plans_au AFTER UPDATE ON trip_plans BEGIN
+      UPDATE trip_plans_fts
+      SET id = new.id,
+          name = new.name,
+          destination = COALESCE((SELECT name FROM destinations WHERE id = new.destination_id), ''),
+          custom_prompt = new.custom_prompt,
+          items_text = COALESCE((SELECT group_concat(title || ' ' || COALESCE(details, ''), ' ') FROM itinerary_items WHERE trip_plan_id = new.id), '')
+      WHERE rowid = old.rowid;
+    END;
+    DROP TRIGGER IF EXISTS trip_plans_ad;
+    CREATE TRIGGER trip_plans_ad AFTER DELETE ON trip_plans BEGIN
+      DELETE FROM trip_plans_fts WHERE rowid = old.rowid;
+    END;
+
+    DROP TRIGGER IF EXISTS messages_ai;
+    CREATE TRIGGER messages_ai AFTER INSERT ON messages BEGIN
+      INSERT INTO messages_fts(rowid, id, room, from_email, to_email, content)
+      VALUES (
+        new.rowid,
+        new.id,
+        new.room,
+        (SELECT email FROM users WHERE id = new.from_user_id),
+        (SELECT email FROM users WHERE id = new.to_user_id),
+        new.content
+      );
+    END;
+    DROP TRIGGER IF EXISTS messages_au;
+    CREATE TRIGGER messages_au AFTER UPDATE ON messages BEGIN
+      UPDATE messages_fts
+      SET id = new.id,
+          room = new.room,
+          from_email = (SELECT email FROM users WHERE id = new.from_user_id),
+          to_email = (SELECT email FROM users WHERE id = new.to_user_id),
+          content = new.content
+      WHERE rowid = old.rowid;
+    END;
+    DROP TRIGGER IF EXISTS messages_ad;
+    CREATE TRIGGER messages_ad AFTER DELETE ON messages BEGIN
+      DELETE FROM messages_fts WHERE rowid = old.rowid;
+    END;
+  `);
+
+  db.exec('DELETE FROM destinations_fts');
+  db.exec('DELETE FROM trip_plans_fts');
+  db.exec('DELETE FROM messages_fts');
+
+  const destinationRows = db.prepare('SELECT rowid, id, name, description FROM destinations').all();
+  const destinationInsert = db.prepare('INSERT INTO destinations_fts(rowid, id, name, description) VALUES (?, ?, ?, ?)');
+  const destinationTx = db.transaction((rows) => {
+    for (const row of rows) {
+      destinationInsert.run(row.rowid, row.id, row.name, row.description);
+    }
+  });
+  destinationTx(destinationRows);
+
+  const planRows = db.prepare(`
+    SELECT
+      tp.rowid,
+      tp.id,
+      tp.name,
+      COALESCE(d.name, '') AS destination,
+      tp.custom_prompt,
+      COALESCE((
+        SELECT group_concat(ii.title || ' ' || COALESCE(ii.details, ''), ' ')
+        FROM itinerary_items ii
+        WHERE ii.trip_plan_id = tp.id
+      ), '') AS items_text
+    FROM trip_plans tp
+    LEFT JOIN destinations d ON d.id = tp.destination_id
+  `).all();
+  const planInsert = db.prepare('INSERT INTO trip_plans_fts(rowid, id, name, destination, custom_prompt, items_text) VALUES (?, ?, ?, ?, ?, ?)');
+  const planTx = db.transaction((rows) => {
+    for (const row of rows) {
+      planInsert.run(row.rowid, row.id, row.name, row.destination, row.custom_prompt, row.items_text);
+    }
+  });
+  planTx(planRows);
+
+  const messageRows = db.prepare(`
+    SELECT
+      m.rowid,
+      m.id,
+      m.room,
+      fu.email AS from_email,
+      tu.email AS to_email,
+      m.content
