@@ -662,3 +662,167 @@ function initFts() {
       fu.email AS from_email,
       tu.email AS to_email,
       m.content
+    FROM messages m
+    LEFT JOIN users fu ON fu.id = m.from_user_id
+    LEFT JOIN users tu ON tu.id = m.to_user_id
+  `).all();
+  const messageInsert = db.prepare('INSERT INTO messages_fts(rowid, id, room, from_email, to_email, content) VALUES (?, ?, ?, ?, ?, ?)');
+  const messageTx = db.transaction((rows) => {
+    for (const row of rows) {
+      messageInsert.run(row.rowid, row.id, row.room, row.from_email, row.to_email, row.content);
+    }
+  });
+  messageTx(messageRows);
+}
+
+function migrateFromJson() {
+  const usersFile = path.join(__dirname, 'users.json');
+  if (fs.existsSync(usersFile)) {
+    const count = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+    if (count === 0) {
+      const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+      const insert = db.prepare(
+        'INSERT OR IGNORE INTO users (id, name, email, password, role) VALUES (@id, @name, @email, @password, @role)'
+      );
+      const tx = db.transaction((rows) => {
+        for (const row of rows) {
+          insert.run({
+            id: row.id,
+            name: row.name,
+            email: row.email.toLowerCase(),
+            password: row.password,
+            role: row.role || 'user'
+          });
+        }
+      });
+      tx(users);
+      console.log(`[db] imported ${users.length} user(s) from users.json`);
+    }
+  }
+
+  const plansFile = path.join(__dirname, 'itineraries.json');
+  if (fs.existsSync(plansFile)) {
+    const count = db.prepare('SELECT COUNT(*) AS c FROM trip_plans').get().c;
+    if (count === 0) {
+      const plans = JSON.parse(fs.readFileSync(plansFile, 'utf8'));
+      const insert = db.prepare(`
+        INSERT OR IGNORE INTO trip_plans
+        (id, name, destination, days, style, budget, custom_prompt, source, items_json, updated_at, user_email)
+        VALUES (@id, @name, @destination, @days, @style, @budget, @custom_prompt, @source, @items_json, @updated_at, @user_email)
+      `);
+      const tx = db.transaction((rows) => {
+        for (const row of rows) {
+          insert.run({
+            id: row.id,
+            name: row.name,
+            destination: row.destination,
+            days: row.days,
+            style: row.style || 'Balanced',
+            budget: row.budget || '',
+            custom_prompt: row.customPrompt || '',
+            source: row.source || null,
+            items_json: JSON.stringify(row.items || []),
+            updated_at: normalizeTimestamp(row.updatedAt),
+            user_email: row.userEmail || null
+          });
+        }
+      });
+      tx(plans);
+      console.log(`[db] imported ${plans.length} trip plan(s) from itineraries.json`);
+    }
+  }
+
+  const messagesFile = path.join(__dirname, 'messages.json');
+  if (fs.existsSync(messagesFile)) {
+    const count = db.prepare('SELECT COUNT(*) AS c FROM messages').get().c;
+    if (count === 0) {
+      const messages = JSON.parse(fs.readFileSync(messagesFile, 'utf8'));
+      const insert = db.prepare(`
+        INSERT OR IGNORE INTO messages (id, room, from_user, to_user, content, created_at)
+        VALUES (@id, @room, @from_user, @to_user, @content, @created_at)
+      `);
+      const tx = db.transaction((rows) => {
+        for (const row of rows) {
+          insert.run({
+            id: row.id,
+            room: row.room || 'global',
+            from_user: row.from,
+            to_user: row.to || null,
+            content: row.content,
+            created_at: normalizeTimestamp(row.time)
+          });
+        }
+      });
+      tx(messages);
+      console.log(`[db] imported ${messages.length} message(s) from messages.json`);
+    }
+  }
+}
+
+function seedDemoUsersFromJson() {
+  if (process.env.NODE_ENV === 'production') return;
+
+  const usersFile = path.join(__dirname, 'users.json');
+  if (!fs.existsSync(usersFile)) return;
+
+  const { splitName, assignUserRole } = require('./userStore');
+  const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+  const now = sqlNow();
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO users (id, first_name, last_name, email, password_hash, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+  `);
+  const tx = db.transaction((rows) => {
+    for (const row of rows) {
+      const { first_name, last_name } = splitName(row.name);
+      insert.run(row.id, first_name, last_name, row.email.toLowerCase(), row.password, now, now);
+      assignUserRole(row.id, row.role || 'user');
+    }
+  });
+  tx(users);
+}
+
+function seedDefaultAdmin() {
+  const count = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+  if (count > 0) return;
+
+  const bcrypt = require('bcryptjs');
+  const { assignUserRole } = require('./userStore');
+  const now = sqlNow();
+
+  db.prepare(`
+    INSERT INTO users (id, first_name, last_name, email, password_hash, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+  `).run(
+    'user-1',
+    'TravelMate',
+    'Admin',
+    'admin@travelmate.ai',
+    bcrypt.hashSync('Test1234', 8),
+    now,
+    now
+  );
+  assignUserRole('user-1', 'admin');
+  console.log('[db] created default admin user (admin@travelmate.ai / Test1234)');
+}
+
+function seedChatRooms() {
+  const insert = db.prepare('INSERT OR IGNORE INTO chat_rooms (id, name, description, is_private) VALUES (?, ?, ?, ?)');
+  insert.run('global', 'Global', 'Group chat visible to everyone in the travel room.', 0);
+  insert.run('private', 'Private', 'Direct messages between two users.', 1);
+}
+
+initSchema();
+initFts();
+normalizeStoredDates(db);
+seedChatRooms();
+
+module.exports = { db, dbPath };
+
+// Disable automatic sample data import so the app uses only user-entered production data.
+// JSON sample files remain for reference but are not loaded automatically.
+// During local development, bootstrap a default admin account if the users table is empty.
+if (process.env.SEED_DEFAULT_ADMIN === 'true' || process.env.NODE_ENV !== 'production') {
+  seedDefaultAdmin();
+  seedDemoUsersFromJson();
+}
