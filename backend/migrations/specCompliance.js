@@ -165,3 +165,170 @@ function migrateRefreshTokens(db) {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       token_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked_at TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      ${AUDIT_FK.trim()}
+    );
+    `,
+    `
+    INSERT INTO refresh_tokens (
+      id, user_id, token_hash, expires_at, revoked_at,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id,
+      user_id,
+      COALESCE(token_hash, token),
+      expires_at,
+      revoked_at,
+      created_by,
+      updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_refresh_tokens_old;
+    `
+  );
+}
+
+function migrateAuditLogs(db) {
+  if (!tableExists(db, 'audit_logs')) return;
+  if (hasColumn(db, 'audit_logs', 'entity') && !hasColumn(db, 'audit_logs', 'table_name')) return;
+
+  rebuildTable(
+    db,
+    'audit_logs',
+    `
+    CREATE TABLE audit_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      action TEXT NOT NULL,
+      entity TEXT,
+      entity_id TEXT,
+      old_value TEXT,
+      new_value TEXT,
+      ip_address TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      ${AUDIT_FK.trim()}
+    );
+    `,
+    `
+    INSERT INTO audit_logs (
+      id, user_id, action, entity, entity_id, old_value, new_value, ip_address,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id,
+      user_id,
+      action,
+      COALESCE(entity, table_name),
+      COALESCE(entity_id, record_id),
+      old_value,
+      COALESCE(new_value, details),
+      ip_address,
+      created_by,
+      updated_by,
+      COALESCE(created_at, changed_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, created_at, changed_at, CURRENT_TIMESTAMP)
+    FROM _migrate_audit_logs_old;
+    `
+  );
+}
+
+function migrateFiles(db) {
+  if (!tableExists(db, 'files')) return;
+  if (hasColumn(db, 'files', 'entity') && !hasColumn(db, 'files', 'related_table')) return;
+
+  rebuildTable(
+    db,
+    'files',
+    `
+    CREATE TABLE files (
+      id TEXT PRIMARY KEY,
+      entity TEXT,
+      entity_id TEXT,
+      filename TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size INTEGER,
+      mime_type TEXT,
+      uploaded_by TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
+      ${AUDIT_FK.trim()}
+    );
+    `,
+    `
+    INSERT INTO files (
+      id, entity, entity_id, filename, file_path, file_size, mime_type, uploaded_by,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id,
+      COALESCE(entity, related_table),
+      COALESCE(entity_id, related_id),
+      filename,
+      COALESCE(file_path, url, ''),
+      file_size,
+      mime_type,
+      COALESCE(uploaded_by, created_by),
+      created_by,
+      updated_by,
+      COALESCE(created_at, uploaded_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, created_at, uploaded_at, CURRENT_TIMESTAMP)
+    FROM _migrate_files_old;
+    `
+  );
+}
+
+function migrateReviews(db) {
+  if (!tableExists(db, 'reviews')) return;
+  if (hasColumn(db, 'reviews', 'entity') && !hasColumn(db, 'reviews', 'target_table')) return;
+
+  rebuildTable(
+    db,
+    'reviews',
+    `
+    CREATE TABLE reviews (
+      id TEXT PRIMARY KEY,
+      entity TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      rating INTEGER NOT NULL DEFAULT 5,
+      comment TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      ${AUDIT_FK.trim()}
+    );
+    `,
+    `
+    INSERT INTO reviews (
+      id, entity, entity_id, user_id, rating, comment,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id,
+      COALESCE(entity, target_table),
+      COALESCE(entity_id, target_id),
+      user_id,
+      rating,
+      comment,
+      created_by,
+      updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_reviews_old;
+    `
