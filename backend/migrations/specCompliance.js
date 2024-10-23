@@ -332,3 +332,170 @@ function migrateReviews(db) {
       COALESCE(updated_at, CURRENT_TIMESTAMP)
     FROM _migrate_reviews_old;
     `
+  );
+}
+
+function migrateFavorites(db) {
+  if (!tableExists(db, 'favorites')) return;
+  if (hasColumn(db, 'favorites', 'entity') && !hasColumn(db, 'favorites', 'target_table')) return;
+
+  rebuildTable(
+    db,
+    'favorites',
+    `
+    CREATE TABLE favorites (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      entity TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      ${AUDIT_FK.trim()}
+    );
+    `,
+    `
+    INSERT INTO favorites (
+      id, user_id, entity, entity_id,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id,
+      user_id,
+      COALESCE(entity, target_table),
+      COALESCE(entity_id, target_id),
+      created_by,
+      updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_favorites_old;
+    `
+  );
+}
+
+function migrateSettings(db) {
+  if (!tableExists(db, 'settings')) return;
+  if (!hasColumn(db, 'settings', 'description')) {
+    db.exec('ALTER TABLE settings ADD COLUMN description TEXT');
+  }
+
+  const fkList = db.prepare('PRAGMA foreign_key_list(settings)').all();
+  const hasAuditFk = fkList.some((fk) => fk.from === 'created_by');
+  if (hasAuditFk) return;
+
+  rebuildTable(
+    db,
+    'settings',
+    `
+    CREATE TABLE settings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      key TEXT NOT NULL,
+      value TEXT,
+      description TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      ${AUDIT_FK.trim()},
+      UNIQUE(user_id, key)
+    );
+    `,
+    `
+    INSERT INTO settings (
+      id, user_id, key, value, description,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, user_id, key, value, description,
+      created_by, updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_settings_old;
+    `
+  );
+}
+
+function migrateBookingsAmount(db) {
+  if (!tableExists(db, 'bookings')) return;
+
+  const amountCol = db.prepare('PRAGMA table_info(bookings)').all().find((c) => c.name === 'amount');
+  if (!amountCol || amountCol.type.toUpperCase() === 'REAL') return;
+
+  rebuildTable(
+    db,
+    'bookings',
+    `
+    CREATE TABLE bookings (
+      id TEXT PRIMARY KEY,
+      trip_plan_id TEXT,
+      supplier_id TEXT,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT DEFAULT 'Pending',
+      date TEXT NOT NULL,
+      amount REAL DEFAULT 0,
+      location TEXT DEFAULT '',
+      details TEXT DEFAULT '',
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(trip_plan_id) REFERENCES trip_plans(id) ON DELETE SET NULL,
+      FOREIGN KEY(supplier_id) REFERENCES booking_suppliers(id) ON DELETE SET NULL,
+      ${AUDIT_FK.trim()}
+    );
+    `,
+    `
+    INSERT INTO bookings (
+      id, trip_plan_id, supplier_id, type, title, status, date, amount, location, details,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, trip_plan_id, supplier_id, type, title, status, date,
+      CASE
+        WHEN amount IS NULL OR trim(amount) = '' THEN 0
+        ELSE CAST(amount AS REAL)
+      END,
+      location, details,
+      created_by, updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_bookings_old;
+    `
+  );
+}
+
+function rebuildWithAuditFks(db, tableName, bodySql, selectSql) {
+  if (!tableExists(db, tableName)) return;
+
+  const fkList = db.prepare(`PRAGMA foreign_key_list(${tableName})`).all();
+  const hasCreatedByFk = fkList.some((fk) => fk.from === 'created_by' && fk.table === 'users');
+  if (hasCreatedByFk) return;
+
+  rebuildTable(
+    db,
+    tableName,
+    `CREATE TABLE ${tableName} (${bodySql});`,
+    `INSERT INTO ${tableName} SELECT ${selectSql} FROM _migrate_${tableName}_old;`
+  );
+}
+
+function migrateAuditForeignKeys(db) {
+  const tables = [
+    {
+      name: 'roles',
+      body: `
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, name, description, created_by, updated_by, created_at, updated_at'
