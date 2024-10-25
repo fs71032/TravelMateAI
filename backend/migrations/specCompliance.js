@@ -499,3 +499,170 @@ function migrateAuditForeignKeys(db) {
         ${AUDIT_FK.trim()}
       `,
       select: 'id, name, description, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'permissions',
+      body: `
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, name, description, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'destinations',
+      body: `
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location TEXT NOT NULL,
+        category TEXT,
+        price TEXT,
+        rating REAL,
+        description TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, name, location, category, price, rating, description, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'guides',
+      body: `
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        language TEXT,
+        specialty TEXT,
+        contact TEXT,
+        rating REAL DEFAULT 0,
+        bio TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, name, language, specialty, contact, rating, bio, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'booking_suppliers',
+      body: `
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT,
+        contact TEXT,
+        phone TEXT,
+        email TEXT,
+        details TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, name, type, contact, phone, email, details, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'travel_groups',
+      body: `
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        owner_id TEXT NOT NULL,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, name, description, owner_id, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'group_members',
+      body: `
+        id TEXT PRIMARY KEY,
+        travel_group_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member',
+        created_by TEXT,
+        updated_by TEXT,
+        joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(travel_group_id) REFERENCES travel_groups(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        ${AUDIT_FK.trim()},
+        UNIQUE(travel_group_id, user_id)
+      `,
+      select: 'id, travel_group_id, user_id, role, created_by, updated_by, joined_at, created_at, updated_at'
+    },
+    {
+      name: 'role_permissions',
+      body: `
+        id TEXT PRIMARY KEY,
+        role_id TEXT NOT NULL,
+        permission_id TEXT NOT NULL,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(role_id) REFERENCES roles(id) ON DELETE CASCADE,
+        FOREIGN KEY(permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
+        ${AUDIT_FK.trim()},
+        UNIQUE(role_id, permission_id)
+      `,
+      select: 'id, role_id, permission_id, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'user_roles',
+      body: `
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        role_id TEXT NOT NULL,
+        assigned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(role_id) REFERENCES roles(id) ON DELETE CASCADE,
+        ${AUDIT_FK.trim()},
+        UNIQUE(user_id, role_id)
+      `,
+      select: 'id, user_id, role_id, assigned_at, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'invoices',
+      body: `
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        booking_id TEXT,
+        amount REAL NOT NULL DEFAULT 0,
+        currency TEXT NOT NULL DEFAULT 'EUR',
+        issued_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        due_date TEXT,
+        status TEXT NOT NULL DEFAULT 'Unpaid',
+        pdf_path TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, user_id, booking_id, amount, currency, issued_at, due_date, status, pdf_path, created_by, updated_by, created_at, updated_at'
+    },
+    {
+      name: 'payments',
+      body: `
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        booking_id TEXT,
