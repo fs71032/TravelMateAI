@@ -666,3 +666,168 @@ function migrateAuditForeignKeys(db) {
         id TEXT PRIMARY KEY,
         user_id TEXT,
         booking_id TEXT,
+        amount REAL NOT NULL DEFAULT 0,
+        currency TEXT NOT NULL DEFAULT 'EUR',
+        status TEXT NOT NULL DEFAULT 'Pending',
+        method TEXT,
+        paid_at TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+        ${AUDIT_FK.trim()}
+      `,
+      select: 'id, user_id, booking_id, amount, currency, status, method, paid_at, created_by, updated_by, created_at, updated_at'
+    }
+  ];
+
+  for (const table of tables) {
+    rebuildWithAuditFks(db, table.name, table.body, table.select);
+  }
+}
+
+function repairInvoicesPaymentsAuditFk(db) {
+  const { rebuildInvoices, rebuildPayments } = require('./to3nf');
+  rebuildInvoices(db);
+  rebuildPayments(db);
+}
+
+function repairDestinationsAuditFk(db) {
+  if (!tableExists(db, 'destinations') && tableExists(db, '_migrate_destinations_old')) {
+    db.exec('ALTER TABLE _migrate_destinations_old RENAME TO destinations');
+  }
+  db.exec('DROP TABLE IF EXISTS _migrate_destinations_old');
+
+  if (!tableExists(db, 'destinations')) return;
+
+  const fkList = db.prepare('PRAGMA foreign_key_list(destinations)').all();
+  if (fkList.some((fk) => fk.from === 'created_by' && fk.table === 'users')) return;
+
+  rebuildTable(
+    db,
+    'destinations',
+    `
+    CREATE TABLE destinations (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      location TEXT NOT NULL,
+      category TEXT,
+      price TEXT,
+      rating REAL,
+      description TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      ${AUDIT_FK.trim()}
+    );
+    `,
+    `
+    INSERT INTO destinations (
+      id, name, location, category, price, rating, description,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, name, location, category, price, rating, description,
+      created_by, updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_destinations_old;
+    `
+  );
+}
+
+function ensureSpecIndexes(db) {
+  const indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+    'CREATE INDEX IF NOT EXISTS idx_users_created_by ON users(created_by)',
+    'CREATE INDEX IF NOT EXISTS idx_users_updated_by ON users(updated_by)',
+    'CREATE INDEX IF NOT EXISTS idx_roles_name ON roles(name)',
+    'CREATE INDEX IF NOT EXISTS idx_permissions_name ON permissions(name)',
+    'CREATE INDEX IF NOT EXISTS idx_settings_user_id ON settings(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_settings_key ON settings(key)',
+    'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash)',
+    'CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id)',
+    'CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions(permission_id)',
+    'CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles(role_id)',
+    'CREATE INDEX IF NOT EXISTS idx_trip_plans_user_id ON trip_plans(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_trip_plans_destination_id ON trip_plans(destination_id)',
+    'CREATE INDEX IF NOT EXISTS idx_itinerary_items_trip_plan_id ON itinerary_items(trip_plan_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bookings_trip_plan_id ON bookings(trip_plan_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bookings_supplier_id ON bookings(supplier_id)',
+    'CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_invoices_booking_id ON invoices(booking_id)',
+    'CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id)',
+    'CREATE INDEX IF NOT EXISTS idx_travel_groups_owner_id ON travel_groups(owner_id)',
+    'CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(travel_group_id)',
+    'CREATE INDEX IF NOT EXISTS idx_group_members_user_id ON group_members(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_from_user_id ON messages(from_user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_to_user_id ON messages(to_user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_reviews_entity ON reviews(entity, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_favorites_entity ON favorites(entity, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_files_entity ON files(entity, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by)',
+    'CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_chat_rooms_created_by ON chat_rooms(created_by)',
+    'CREATE INDEX IF NOT EXISTS idx_destinations_name ON destinations(name)',
+    'CREATE INDEX IF NOT EXISTS idx_destinations_location ON destinations(location)',
+    'CREATE INDEX IF NOT EXISTS idx_guides_name ON guides(name)',
+    'CREATE INDEX IF NOT EXISTS idx_booking_suppliers_name ON booking_suppliers(name)',
+    'CREATE INDEX IF NOT EXISTS idx_booking_suppliers_type ON booking_suppliers(type)'
+  ];
+
+  for (const sql of indexes) {
+    db.exec(sql);
+  }
+
+  db.exec('DROP INDEX IF EXISTS idx_reviews_target');
+  db.exec('DROP INDEX IF EXISTS idx_favorites_target');
+  db.exec('DROP INDEX IF EXISTS idx_files_related');
+}
+
+function migrateToSpec(db) {
+  db.pragma('foreign_keys = OFF');
+  try {
+    repairPartialUserMigration(db);
+
+    const version = db.pragma('user_version', { simple: true });
+
+    if (version < SCHEMA_VERSION_SPEC) {
+      console.log('[db] migrating schema to spec compliance (user_version=3)');
+      ensureDefaultRoles(db);
+      migrateUsersTable(db);
+      migrateRefreshTokens(db);
+      migrateAuditLogs(db);
+      migrateFiles(db);
+      migrateReviews(db);
+      migrateFavorites(db);
+      migrateSettings(db);
+      migrateBookingsAmount(db);
+      migrateAuditForeignKeys(db);
+
+      const { repairBrokenForeignKeys } = require('./to3nf');
+      repairBrokenForeignKeys(db);
+
+      db.pragma(`user_version = ${SCHEMA_VERSION_SPEC}`);
+      console.log('[db] schema migrated to spec compliance (user_version=3)');
+    }
+
+    repairInvoicesPaymentsAuditFk(db);
+    repairDestinationsAuditFk(db);
+    ensureSpecIndexes(db);
+  } finally {
+    db.pragma('foreign_keys = ON');
+  }
+}
+
+module.exports = { migrateToSpec, SCHEMA_VERSION_SPEC };
