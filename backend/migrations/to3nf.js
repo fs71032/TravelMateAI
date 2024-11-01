@@ -163,3 +163,168 @@ function hasBrokenMigrationRefs(db) {
 
 function rebuildItineraryItems(db) {
   if (!hasColumn(db, 'itinerary_items', 'trip_plan_id')) return;
+
+  const fkList = db.prepare('PRAGMA foreign_key_list(itinerary_items)').all();
+  const tripPlanFk = fkList.find((fk) => fk.from === 'trip_plan_id');
+  if (tripPlanFk && tripPlanFk.table === 'trip_plans') return;
+
+  rebuildTable(
+    db,
+    'itinerary_items',
+    `
+    CREATE TABLE itinerary_items (
+      id TEXT PRIMARY KEY,
+      trip_plan_id TEXT NOT NULL,
+      day INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      details TEXT,
+      order_index INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(trip_plan_id) REFERENCES trip_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO itinerary_items (
+      id, trip_plan_id, day, title, details, order_index,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, trip_plan_id, day, title, details, order_index,
+      created_by, updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_itinerary_items_old;
+    `
+  );
+}
+
+function rebuildBookings(db) {
+  const fkList = db.prepare('PRAGMA foreign_key_list(bookings)').all();
+  const tripPlanFk = fkList.find((fk) => fk.from === 'trip_plan_id');
+  if (tripPlanFk && tripPlanFk.table === 'trip_plans') return;
+
+  rebuildTable(
+    db,
+    'bookings',
+    `
+    CREATE TABLE bookings (
+      id TEXT PRIMARY KEY,
+      trip_plan_id TEXT,
+      supplier_id TEXT,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT DEFAULT 'Pending',
+      date TEXT NOT NULL,
+      amount TEXT DEFAULT '',
+      location TEXT DEFAULT '',
+      details TEXT DEFAULT '',
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(trip_plan_id) REFERENCES trip_plans(id) ON DELETE SET NULL,
+      FOREIGN KEY(supplier_id) REFERENCES booking_suppliers(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO bookings (
+      id, trip_plan_id, supplier_id, type, title, status, date, amount, location, details,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, trip_plan_id, supplier_id, type, title, status, date, amount, location, details,
+      created_by, updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_bookings_old;
+    `
+  );
+}
+
+function rebuildMessagesRoomFk(db) {
+  if (!hasColumn(db, 'messages', 'from_user_id')) return;
+
+  const fkList = db.prepare('PRAGMA foreign_key_list(messages)').all();
+  const roomFk = fkList.find((fk) => fk.from === 'room');
+  if (roomFk && roomFk.table === 'chat_rooms') return;
+
+  rebuildTable(
+    db,
+    'messages',
+    `
+    CREATE TABLE messages (
+      id TEXT PRIMARY KEY,
+      room TEXT NOT NULL DEFAULT 'global',
+      from_user_id TEXT NOT NULL,
+      to_user_id TEXT,
+      content TEXT NOT NULL,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(room) REFERENCES chat_rooms(id) ON DELETE SET NULL,
+      FOREIGN KEY(from_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+      FOREIGN KEY(to_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO messages (id, room, from_user_id, to_user_id, content, created_by, updated_by, created_at, updated_at)
+    SELECT id, room, from_user_id, to_user_id, content, created_by, updated_by, created_at, updated_at
+    FROM _migrate_messages_old;
+    `
+  );
+}
+
+function dropFtsTriggers(db) {
+  const triggers = db.prepare("SELECT name FROM sqlite_master WHERE type='trigger'").all();
+  for (const trigger of triggers) {
+    db.exec(`DROP TRIGGER IF EXISTS ${trigger.name}`);
+  }
+}
+
+function rebuildInvoices(db) {
+  const fkList = db.prepare('PRAGMA foreign_key_list(invoices)').all();
+  const bookingOk = fkList.some((fk) => fk.from === 'booking_id' && fk.table === 'bookings');
+  const auditOk = fkList.some((fk) => fk.from === 'created_by' && fk.table === 'users');
+  if (bookingOk && auditOk) return;
+
+  rebuildTable(
+    db,
+    'invoices',
+    `
+    CREATE TABLE invoices (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      booking_id TEXT,
+      amount REAL NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      issued_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      due_date TEXT,
+      status TEXT NOT NULL DEFAULT 'Unpaid',
+      pdf_path TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO invoices (
+      id, user_id, booking_id, amount, currency, issued_at, due_date, status, pdf_path,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, user_id, booking_id, amount, currency, issued_at, due_date, status, pdf_path,
