@@ -328,3 +328,168 @@ function rebuildInvoices(db) {
     )
     SELECT
       id, user_id, booking_id, amount, currency, issued_at, due_date, status, pdf_path,
+      created_by, updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_invoices_old;
+    `
+  );
+}
+
+function rebuildPayments(db) {
+  const fkList = db.prepare('PRAGMA foreign_key_list(payments)').all();
+  const bookingOk = fkList.some((fk) => fk.from === 'booking_id' && fk.table === 'bookings');
+  const auditOk = fkList.some((fk) => fk.from === 'created_by' && fk.table === 'users');
+  if (bookingOk && auditOk) return;
+
+  rebuildTable(
+    db,
+    'payments',
+    `
+    CREATE TABLE payments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      booking_id TEXT,
+      amount REAL NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      status TEXT NOT NULL DEFAULT 'Pending',
+      method TEXT,
+      paid_at TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO payments (
+      id, user_id, booking_id, amount, currency, status, method, paid_at,
+      created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, user_id, booking_id, amount, currency, status, method, paid_at,
+      created_by, updated_by,
+      COALESCE(created_at, CURRENT_TIMESTAMP),
+      COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _migrate_payments_old;
+    `
+  );
+}
+
+function cleanupLegacyColumns(db) {
+  if (hasColumn(db, 'trip_plans', 'user_email') || hasColumn(db, 'trip_plans', 'items_json') || hasColumn(db, 'trip_plans', 'destination')) {
+    rebuildTable(
+      db,
+      'trip_plans',
+      `
+      CREATE TABLE trip_plans (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        destination_id TEXT,
+        days INTEGER NOT NULL,
+        style TEXT NOT NULL DEFAULT 'Balanced',
+        budget TEXT DEFAULT '',
+        custom_prompt TEXT DEFAULT '',
+        source TEXT,
+        user_id TEXT,
+        planned_date TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+      );
+      `,
+      `
+      INSERT INTO trip_plans (
+        id, name, destination_id, days, style, budget, custom_prompt, source,
+        user_id, planned_date, created_by, updated_by, created_at, updated_at
+      )
+      SELECT
+        id, name, destination_id, days, style, budget, custom_prompt, source,
+        user_id, planned_date, created_by, updated_by, created_at, updated_at
+      FROM _migrate_trip_plans_old;
+      `
+    );
+  }
+
+  if (hasColumn(db, 'notifications', 'user_email')) {
+    rebuildTable(
+      db,
+      'notifications',
+      `
+      CREATE TABLE notifications (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        user_id TEXT,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+      );
+      `,
+      `
+      INSERT INTO notifications (id, type, title, message, user_id, is_read, created_by, updated_by, created_at, updated_at)
+      SELECT id, type, title, message, user_id, is_read, created_by, updated_by, created_at, updated_at
+      FROM _migrate_notifications_old;
+      `
+    );
+  }
+}
+
+function tableExists(db, table) {
+  return Boolean(
+    db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name = ?").get(table)
+  );
+}
+
+function tripPlansHasBrokenDestinationFk(db) {
+  if (!tableExists(db, 'trip_plans')) return false;
+  const fks = db.prepare('PRAGMA foreign_key_list(trip_plans)').all();
+  const destFk = fks.find((fk) => fk.from === 'destination_id');
+  return Boolean(destFk && destFk.table !== 'destinations');
+}
+
+function rebuildTripPlansTable(db) {
+  rebuildTable(
+    db,
+    'trip_plans',
+    `
+    CREATE TABLE trip_plans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      destination_id TEXT,
+      days INTEGER NOT NULL,
+      style TEXT NOT NULL DEFAULT 'Balanced',
+      budget TEXT DEFAULT '',
+      custom_prompt TEXT DEFAULT '',
+      source TEXT,
+      user_id TEXT,
+      planned_date TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO trip_plans (
+      id, name, destination_id, days, style, budget, custom_prompt, source,
+      user_id, planned_date, created_by, updated_by, created_at, updated_at
