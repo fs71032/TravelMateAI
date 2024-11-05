@@ -493,3 +493,168 @@ function rebuildTripPlansTable(db) {
     INSERT INTO trip_plans (
       id, name, destination_id, days, style, budget, custom_prompt, source,
       user_id, planned_date, created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id, name, destination_id, days, style, budget, custom_prompt, source,
+      user_id, planned_date, created_by, updated_by, created_at, updated_at
+    FROM _migrate_trip_plans_old;
+    `
+  );
+}
+
+function repairDependentTables(db) {
+  const steps = [
+    { name: 'itinerary_items', check: () => {
+      const fks = db.prepare('PRAGMA foreign_key_list(itinerary_items)').all();
+      return fks.some((fk) => fk.from === 'trip_plan_id' && fk.table !== 'trip_plans');
+    }, run: () => rebuildItineraryItems(db) },
+    { name: 'bookings', check: () => {
+      const fks = db.prepare('PRAGMA foreign_key_list(bookings)').all();
+      return fks.some((fk) => fk.from === 'trip_plan_id' && fk.table !== 'trip_plans');
+    }, run: () => rebuildBookings(db) },
+    { name: 'messages', check: () => {
+      const fks = db.prepare('PRAGMA foreign_key_list(messages)').all();
+      return fks.some((fk) => fk.from === 'room' && fk.table !== 'chat_rooms');
+    }, run: () => rebuildMessagesRoomFk(db) },
+    { name: 'invoices', check: () => {
+      const fks = db.prepare('PRAGMA foreign_key_list(invoices)').all();
+      return fks.some((fk) => fk.from === 'booking_id' && fk.table !== 'bookings');
+    }, run: () => rebuildInvoices(db) },
+    { name: 'payments', check: () => {
+      const fks = db.prepare('PRAGMA foreign_key_list(payments)').all();
+      return fks.some((fk) => fk.from === 'booking_id' && fk.table !== 'bookings');
+    }, run: () => rebuildPayments(db) }
+  ];
+
+  let repaired = false;
+  for (let pass = 0; pass < 3; pass += 1) {
+    let changed = false;
+    for (const step of steps) {
+      if (step.check()) {
+        step.run();
+        changed = true;
+        repaired = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return repaired;
+}
+
+function repairBrokenForeignKeys(db) {
+  dropFtsTriggers(db);
+
+  const needsLegacyCleanup =
+    hasColumn(db, 'trip_plans', 'user_email') ||
+    hasColumn(db, 'trip_plans', 'items_json') ||
+    hasColumn(db, 'trip_plans', 'destination') ||
+    hasColumn(db, 'notifications', 'user_email');
+
+  const hasBrokenRefs = Boolean(
+    db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND sql LIKE '%_migrate_%' LIMIT 1").get()
+  );
+
+  if (!needsLegacyCleanup && !hasBrokenRefs) {
+    return;
+  }
+
+  console.log('[db] repairing 3NF schema (foreign keys / legacy columns)');
+
+  if (tripPlansHasBrokenDestinationFk(db)) {
+    rebuildTripPlansTable(db);
+  }
+
+  if (needsLegacyCleanup) cleanupLegacyColumns(db);
+  repairDependentTables(db);
+}
+
+function migrateMessages(db) {
+  if (hasColumn(db, 'messages', 'from_user_id')) return;
+
+  ensureSystemUserForDb(db);
+  ensureColumn(db, 'messages', 'from_user_id', 'ALTER TABLE messages ADD COLUMN from_user_id TEXT');
+  ensureColumn(db, 'messages', 'to_user_id', 'ALTER TABLE messages ADD COLUMN to_user_id TEXT');
+
+  const rows = db.prepare('SELECT id, from_user, to_user FROM messages').all();
+  const update = db.prepare('UPDATE messages SET from_user_id = ?, to_user_id = ? WHERE id = ?');
+  for (const row of rows) {
+    const fromId = resolveUserIdForDb(db, row.from_user) || ensureSystemUserForDb(db);
+    const toId = row.to_user ? resolveUserIdForDb(db, row.to_user) : null;
+    update.run(fromId, toId, row.id);
+  }
+
+  rebuildTable(
+    db,
+    'messages',
+    `
+    CREATE TABLE messages (
+      id TEXT PRIMARY KEY,
+      room TEXT NOT NULL DEFAULT 'global',
+      from_user_id TEXT NOT NULL,
+      to_user_id TEXT,
+      content TEXT NOT NULL,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(room) REFERENCES chat_rooms(id) ON DELETE SET NULL,
+      FOREIGN KEY(from_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+      FOREIGN KEY(to_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO messages (id, room, from_user_id, to_user_id, content, created_by, updated_by, created_at, updated_at)
+    SELECT id, room, from_user_id, to_user_id, content, created_by, updated_by, created_at, updated_at
+    FROM _migrate_messages_old;
+    `
+  );
+}
+
+function migrateTripPlans(db) {
+  if (
+    !hasColumn(db, 'trip_plans', 'user_email') &&
+    !hasColumn(db, 'trip_plans', 'items_json') &&
+    !hasColumn(db, 'trip_plans', 'destination')
+  ) {
+    return;
+  }
+
+  backfillTripPlanUserIds(db);
+  syncTripPlanItemsFromJson(db);
+  backfillTripPlanDestinationIds(db);
+
+  rebuildTable(
+    db,
+    'trip_plans',
+    `
+    CREATE TABLE trip_plans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      destination_id TEXT,
+      days INTEGER NOT NULL,
+      style TEXT NOT NULL DEFAULT 'Balanced',
+      budget TEXT DEFAULT '',
+      custom_prompt TEXT DEFAULT '',
+      source TEXT,
+      user_id TEXT,
+      planned_date TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(destination_id) REFERENCES destinations(id) ON DELETE SET NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO trip_plans (
+      id, name, destination_id, days, style, budget, custom_prompt, source,
+      user_id, planned_date, created_by, updated_by, created_at, updated_at
+    )
+    SELECT
+      id,
+      name,
