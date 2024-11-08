@@ -658,3 +658,164 @@ function migrateTripPlans(db) {
     SELECT
       id,
       name,
+      destination_id,
+      days,
+      style,
+      budget,
+      custom_prompt,
+      source,
+      user_id,
+      planned_date,
+      created_by,
+      updated_by,
+      created_at,
+      updated_at
+    FROM _migrate_trip_plans_old;
+    `
+  );
+}
+
+function migrateNotifications(db) {
+  if (!hasColumn(db, 'notifications', 'user_email')) return;
+
+  const rows = db
+    .prepare('SELECT id, user_email, user_id FROM notifications WHERE user_id IS NULL AND user_email IS NOT NULL')
+    .all();
+  const update = db.prepare('UPDATE notifications SET user_id = ? WHERE id = ?');
+  for (const row of rows) {
+    const userId = resolveUserIdForDb(db, row.user_email);
+    if (userId) update.run(userId, row.id);
+  }
+
+  rebuildTable(
+    db,
+    'notifications',
+    `
+    CREATE TABLE notifications (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      user_id TEXT,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO notifications (id, type, title, message, user_id, is_read, created_by, updated_by, created_at, updated_at)
+    SELECT id, type, title, message, user_id, is_read, created_by, updated_by, created_at, updated_at
+    FROM _migrate_notifications_old;
+    `
+  );
+}
+
+function migrateChatRooms(db) {
+  const fkList = db.prepare('PRAGMA foreign_key_list(chat_rooms)').all();
+  if (fkList.some((fk) => fk.from === 'created_by')) return;
+
+  rebuildTable(
+    db,
+    'chat_rooms',
+    `
+    CREATE TABLE chat_rooms (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      is_private INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      updated_by TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    `,
+    `
+    INSERT INTO chat_rooms (id, name, description, is_private, created_by, updated_by, created_at, updated_at)
+    SELECT id, name, description, is_private, created_by, updated_by, created_at, updated_at
+    FROM _migrate_chat_rooms_old;
+    `
+  );
+}
+
+function ensureIndexes(db) {
+  const indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+    'CREATE INDEX IF NOT EXISTS idx_users_created_by ON users(created_by)',
+    'CREATE INDEX IF NOT EXISTS idx_users_updated_by ON users(updated_by)',
+    'CREATE INDEX IF NOT EXISTS idx_settings_user_id ON settings(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id)',
+    'CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions(permission_id)',
+    'CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles(role_id)',
+    'CREATE INDEX IF NOT EXISTS idx_trip_plans_user_id ON trip_plans(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_trip_plans_destination_id ON trip_plans(destination_id)',
+    'CREATE INDEX IF NOT EXISTS idx_itinerary_items_trip_plan_id ON itinerary_items(trip_plan_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bookings_trip_plan_id ON bookings(trip_plan_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bookings_supplier_id ON bookings(supplier_id)',
+    'CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_invoices_booking_id ON invoices(booking_id)',
+    'CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id)',
+    'CREATE INDEX IF NOT EXISTS idx_travel_groups_owner_id ON travel_groups(owner_id)',
+    'CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(travel_group_id)',
+    'CREATE INDEX IF NOT EXISTS idx_group_members_user_id ON group_members(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_from_user_id ON messages(from_user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_to_user_id ON messages(to_user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_reviews_entity ON reviews(entity, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_favorites_entity ON favorites(entity, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_files_entity ON files(entity, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_chat_rooms_created_by ON chat_rooms(created_by)'
+  ];
+
+  for (const sql of indexes) {
+    db.exec(sql);
+  }
+
+  db.exec('DROP INDEX IF EXISTS idx_trip_plans_user_email');
+  db.exec('DROP INDEX IF EXISTS idx_notifications_user_email');
+  db.exec('DROP INDEX IF EXISTS idx_messages_from_user');
+  db.exec('DROP INDEX IF EXISTS idx_messages_to_user');
+  db.exec('DROP INDEX IF EXISTS idx_trip_plan_items_trip_plan_id');
+}
+
+function migrateTo3NF(db) {
+  db.pragma('foreign_keys = OFF');
+  try {
+    const version = db.pragma('user_version', { simple: true });
+
+    if (version < SCHEMA_VERSION_3NF) {
+      migrateChatRooms(db);
+      migrateMessages(db);
+      migrateTripPlans(db);
+      migrateNotifications(db);
+      db.pragma(`user_version = ${SCHEMA_VERSION_3NF}`);
+      console.log('[db] schema migrated to 3NF (user_version=2)');
+    }
+
+    repairBrokenForeignKeys(db);
+    ensureIndexes(db);
+  } finally {
+    db.pragma('foreign_keys = ON');
+  }
+}
+
+module.exports = {
+  migrateTo3NF,
+  repairBrokenForeignKeys,
+  rebuildInvoices,
+  rebuildPayments,
+  SCHEMA_VERSION_3NF
+};
