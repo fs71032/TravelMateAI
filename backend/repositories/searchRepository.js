@@ -82,4 +82,88 @@ function search(params) {
       `SELECT t.id, t.name, d.name AS destination, t.days, u.email AS user_email
        FROM trip_plans t
        LEFT JOIN destinations d ON d.id = t.destination_id
-       LEFT JOIN users u ON u.id = t.user_id
+       LEFT JOIN users u ON u.id = t.user_id
+       WHERE t.id IN (SELECT id FROM trip_plans_fts WHERE trip_plans_fts MATCH ?)
+       ORDER BY ${planSort} LIMIT ? OFFSET ?`
+    ).all(q, limit, offset);
+
+    messages = db.prepare(
+      `SELECT m.id, m.room, fu.email AS from_user, m.content, m.created_at
+       FROM messages m
+       LEFT JOIN users fu ON fu.id = m.from_user_id
+       WHERE m.id IN (SELECT id FROM messages_fts WHERE messages_fts MATCH ?)
+       ORDER BY ${msgSort} LIMIT ? OFFSET ?`
+    ).all(q, limit, offset);
+
+    bookings = db.prepare(
+      `SELECT id, type, title, status, date, amount FROM bookings WHERE (title LIKE ? OR details LIKE ?)${bookingFilterSql}
+       ORDER BY ${bookSort} LIMIT ? OFFSET ?`
+    ).all(like, like, ...bookingParams, limit, offset);
+
+    users = db.prepare(`
+      SELECT id, trim(first_name || ' ' || last_name) AS name, email
+      FROM users
+      WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ?
+      ORDER BY ${userSort}
+      LIMIT ? OFFSET ?
+    `).all(like, like, like, limit, offset);
+  } else {
+    destinations = db.prepare(
+      `SELECT d.id, d.name, d.location, d.category, d.description FROM destinations d
+       WHERE (d.name LIKE ? OR d.description LIKE ?)${destinationFilterSql}
+       ORDER BY ${destSort} LIMIT ? OFFSET ?`
+    ).all(like, like, ...destinationParams, limit, offset);
+
+    trip_plans = db.prepare(`
+      SELECT t.id, t.name, d.name AS destination, t.days, u.email AS user_email
+      FROM trip_plans t
+      LEFT JOIN destinations d ON d.id = t.destination_id
+      LEFT JOIN users u ON u.id = t.user_id
+      WHERE t.name LIKE ? OR d.name LIKE ? OR EXISTS (
+        SELECT 1 FROM itinerary_items ii
+        WHERE ii.trip_plan_id = t.id AND (ii.title LIKE ? OR ii.details LIKE ?)
+      )
+      ORDER BY ${planSort} LIMIT ? OFFSET ?
+    `).all(like, like, like, like, limit, offset);
+
+    bookings = db.prepare(
+      `SELECT id, type, title, status, date, amount FROM bookings WHERE (title LIKE ? OR details LIKE ?)${bookingFilterSql}
+       ORDER BY ${bookSort} LIMIT ? OFFSET ?`
+    ).all(like, like, ...bookingParams, limit, offset);
+
+    messages = db.prepare(`
+      SELECT m.id, m.room, fu.email AS from_user, m.content, m.created_at
+      FROM messages m
+      LEFT JOIN users fu ON fu.id = m.from_user_id
+      WHERE m.content LIKE ?
+      ORDER BY ${msgSort} LIMIT ? OFFSET ?
+    `).all(like, limit, offset);
+
+    users = db.prepare(`
+      SELECT id, trim(first_name || ' ' || last_name) AS name, email
+      FROM users
+      WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ?
+      ORDER BY ${userSort}
+      LIMIT ? OFFSET ?
+    `).all(like, like, like, limit, offset);
+  }
+
+  return {
+    query: q,
+    filters: { category: category || null, status: status || null, dateFrom: dateFrom || null, dateTo: dateTo || null },
+    sort: {
+      destinations: destSort,
+      trip_plans: planSort,
+      bookings: bookSort,
+      messages: msgSort,
+      users: userSort
+    },
+    destinations,
+    trip_plans,
+    bookings,
+    messages,
+    users
+  };
+}
+
+module.exports = { search, resolveSearchSort, SEARCH_SORT_COLUMNS };
