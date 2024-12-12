@@ -80,3 +80,83 @@ function rowToPlan(row) {
 }
 
 function normalizeEmail(email) {
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
+}
+
+function listPlans(userEmail) {
+  const userId = resolveUserId(userEmail);
+  const rows = userId
+    ? db
+        .prepare(
+          `SELECT * FROM trip_plans
+           WHERE user_id = ?
+           ORDER BY datetime(COALESCE(planned_date, updated_at)) DESC`
+        )
+        .all(userId)
+    : db.prepare('SELECT * FROM trip_plans ORDER BY datetime(updated_at) DESC').all();
+  return rows.map(rowToPlan);
+}
+
+function upsertPlan(plan) {
+  const userId = plan.userId || resolveUserId(plan.userEmail);
+  const actorUserId = userId || plan.createdBy || null;
+  const destinationId = plan.destinationId || findOrCreateDestination(plan.destination, actorUserId);
+  const now = sqlNow();
+
+  const record = {
+    id: plan.id || `plan-${Date.now()}`,
+    name: plan.name || `${plan.destination} trip`,
+    destination_id: destinationId,
+    days: Number(plan.days) || (Array.isArray(plan.items) ? plan.items.length : 1),
+    style: plan.style || 'Balanced',
+    budget: plan.budget || '',
+    custom_prompt: plan.customPrompt || '',
+    source: plan.source || null,
+    user_id: userId,
+    planned_date: normalizeDate(plan.plannedDate),
+    created_by: plan.createdBy || actorUserId,
+    updated_by: plan.updatedBy || actorUserId,
+    updated_at: normalizeTimestamp(plan.updatedAt) || now,
+    created_at: normalizeTimestamp(plan.createdAt) || now
+  };
+
+  db.prepare(`
+    INSERT INTO trip_plans (
+      id, name, destination_id, days, style, budget, custom_prompt, source,
+      user_id, planned_date, created_by, updated_by, created_at, updated_at
+    )
+    VALUES (
+      @id, @name, @destination_id, @days, @style, @budget, @custom_prompt, @source,
+      @user_id, @planned_date, @created_by, @updated_by, @created_at, @updated_at
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      destination_id = excluded.destination_id,
+      days = excluded.days,
+      style = excluded.style,
+      budget = excluded.budget,
+      custom_prompt = excluded.custom_prompt,
+      source = excluded.source,
+      user_id = excluded.user_id,
+      planned_date = excluded.planned_date,
+      updated_by = excluded.updated_by,
+      updated_at = excluded.updated_at
+  `).run(record);
+
+  syncItineraryItems(record.id, plan.items || [], actorUserId);
+
+  db.prepare(`
+    UPDATE trip_plans_fts
+    SET destination = COALESCE((SELECT name FROM destinations WHERE id = ?), '')
+    WHERE id = ?
+  `).run(destinationId, record.id);
+
+  return rowToPlan(db.prepare('SELECT * FROM trip_plans WHERE id = ?').get(record.id));
+}
+
+function deletePlan(id) {
+  const result = db.prepare('DELETE FROM trip_plans WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+module.exports = { listPlans, upsertPlan, deletePlan, loadItineraryItems, syncItineraryItems };
