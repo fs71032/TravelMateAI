@@ -98,3 +98,101 @@ function findByEmail(email) {
   const row = getDb().prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
   return enrichUser(row);
 }
+
+function findById(id) {
+  const row = getDb().prepare('SELECT * FROM users WHERE id = ?').get(id);
+  return enrichUser(row);
+}
+
+function emailExists(email) {
+  const row = getDb().prepare('SELECT 1 AS ok FROM users WHERE email = ?').get(email.toLowerCase());
+  return Boolean(row);
+}
+
+function createUser({ name, email, password, role = 'user' }) {
+  const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const normalizedEmail = email.toLowerCase();
+  const hashed = bcrypt.hashSync(password, 8);
+  const { first_name, last_name } = splitName(name);
+  const now = sqlNow();
+
+  getDb().prepare(`
+    INSERT INTO users (id, first_name, last_name, email, password_hash, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+  `).run(id, first_name, last_name, normalizedEmail, hashed, now, now);
+
+  assignUserRole(id, role);
+  return findById(id);
+}
+
+function updateUser(email, { name, password }) {
+  const user = findByEmail(email);
+  if (!user) return null;
+
+  const now = sqlNow();
+
+  if (name) {
+    const { first_name, last_name } = splitName(name);
+    getDb().prepare(`
+      UPDATE users
+      SET first_name = ?, last_name = ?, updated_at = ?
+      WHERE id = ?
+    `).run(first_name, last_name, now, user.id);
+  }
+
+  if (password) {
+    const hashed = bcrypt.hashSync(password, 8);
+    getDb().prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(hashed, now, user.id);
+  }
+
+  return findById(user.id);
+}
+
+function verifyPassword(user, password) {
+  const hash = user.password_hash || user.password;
+  return bcrypt.compareSync(password, hash);
+}
+
+function ensurePasswordsHashed() {
+  if (!getDb().prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='users'").get()) {
+    return false;
+  }
+
+  const passwordColumn = getDb().prepare('PRAGMA table_info(users)').all().find((col) => col.name === 'password');
+  if (!passwordColumn) return false;
+
+  const users = getDb().prepare('SELECT id, password FROM users').all();
+  let changed = false;
+
+  for (const user of users) {
+    if (
+      user.password &&
+      !user.password.startsWith('$2a$') &&
+      !user.password.startsWith('$2b$') &&
+      !user.password.startsWith('$2y$')
+    ) {
+      const hashed = bcrypt.hashSync(user.password, 8);
+      getDb().prepare('UPDATE users SET password = ? WHERE id = ?').run(hashed, user.id);
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
+module.exports = {
+  splitName,
+  formatDisplayName,
+  getPrimaryRoleName,
+  assignUserRole,
+  ensureRoleExists,
+  findByEmail,
+  findById,
+  emailExists,
+  createUser,
+  updateUser,
+  verifyPassword,
+  rowToPublicUser,
+  enrichUser,
+  ensurePasswordsHashed
+};
