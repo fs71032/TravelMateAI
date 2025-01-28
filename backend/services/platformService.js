@@ -120,4 +120,127 @@ function createTravelGroup({ name, description, ownerId }) {
   const id = generateId('group');
   const item = entityRepository.insert(
     'travel_groups',
-    ['id', 'name', 'description', 'owner_id'],
+    ['id', 'name', 'description', 'owner_id'],
+    [id, name.trim(), description || null, ownerId]
+  );
+  auditService.logAction({ action: 'create', tableName: 'travel_groups', recordId: id, details: item });
+  return { data: item, status: 201 };
+}
+
+function updateTravelGroup(id, body) {
+  const group = entityRepository.findById('travel_groups', id);
+  if (!group) return { error: { status: 404, message: 'Travel group not found.' } };
+  const pairs = [];
+  if (typeof body.name === 'string') pairs.push(['name', body.name.trim()]);
+  if (typeof body.description === 'string') pairs.push(['description', body.description]);
+  if (typeof body.ownerId === 'string') pairs.push(['owner_id', body.ownerId]);
+  if (!pairs.length) return { error: { status: 400, message: 'No valid fields to update.' } };
+  const updated = entityRepository.updateFields('travel_groups', id, pairs);
+  auditService.logAction({ action: 'update', tableName: 'travel_groups', recordId: id, details: updated });
+  return { data: updated };
+}
+
+function deleteTravelGroup(id) {
+  const result = entityRepository.remove('travel_groups', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Travel group not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'travel_groups', recordId: id });
+  return { status: 204 };
+}
+
+function listGroupMembers(groupId) {
+  const rows = groupId
+    ? entityRepository.listWhere('group_members', 'travel_group_id = ?', [groupId], 'joined_at DESC')
+    : entityRepository.list('group_members', 'joined_at DESC');
+  return { data: rows };
+}
+
+function createGroupMember({ travelGroupId, userId, role }) {
+  if (!travelGroupId || !userId) {
+    return { error: { status: 400, message: 'travelGroupId and userId are required.' } };
+  }
+  const id = generateId('member');
+  try {
+    const item = entityRepository.insert(
+      'group_members',
+      ['id', 'travel_group_id', 'user_id', 'role'],
+      [id, travelGroupId, userId, role || 'member']
+    );
+    auditService.logAction({ action: 'create', tableName: 'group_members', recordId: id, details: item });
+    return { data: item, status: 201 };
+  } catch (error) {
+    return { error: { status: 400, message: 'Group membership already exists or invalid group/user.' } };
+  }
+}
+
+function deleteGroupMember(id) {
+  const result = entityRepository.remove('group_members', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Group member not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'group_members', recordId: id });
+  return { status: 204 };
+}
+
+function listSuppliers() {
+  return { data: entityRepository.list('booking_suppliers', 'name') };
+}
+
+function createSupplier(body) {
+  if (!body.name) return { error: { status: 400, message: 'Supplier name is required.' } };
+  const id = generateId('supplier');
+  const item = entityRepository.insert(
+    'booking_suppliers',
+    ['id', 'name', 'type', 'contact', 'phone', 'email', 'details'],
+    [id, body.name.trim(), body.type || null, body.contact || null, body.phone || null, body.email || null, body.details || null]
+  );
+  auditService.logAction({ action: 'create', tableName: 'booking_suppliers', recordId: id, details: item });
+  return { data: item, status: 201 };
+}
+
+function updateSupplier(id, body) {
+  const supplier = entityRepository.findById('booking_suppliers', id);
+  if (!supplier) return { error: { status: 404, message: 'Supplier not found.' } };
+  const pairs = [];
+  ['name', 'type', 'contact', 'phone', 'email', 'details'].forEach((field) => {
+    if (typeof body[field] === 'string') {
+      pairs.push([field === 'name' ? 'name' : field, field === 'name' ? body[field].trim() : body[field]]);
+    }
+  });
+  if (!pairs.length) return { error: { status: 400, message: 'No valid fields to update.' } };
+  const updated = entityRepository.updateFields('booking_suppliers', id, pairs);
+  auditService.logAction({ action: 'update', tableName: 'booking_suppliers', recordId: id, details: updated });
+  return { data: updated };
+}
+
+function deleteSupplier(id) {
+  const result = entityRepository.remove('booking_suppliers', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Supplier not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'booking_suppliers', recordId: id });
+  return { status: 204 };
+}
+
+function listInvoices() {
+  return { data: entityRepository.list('invoices', 'issued_at DESC') };
+}
+
+function createInvoice(body) {
+  if (typeof body.amount !== 'number') {
+    return { error: { status: 400, message: 'Invoice amount must be a number.' } };
+  }
+  const id = generateId('invoice');
+  const item = entityRepository.insert(
+    'invoices',
+    ['id', 'user_id', 'booking_id', 'amount', 'currency', 'due_date', 'status', 'pdf_path'],
+    [id, body.userId || null, body.bookingId || null, body.amount, body.currency || 'EUR', body.dueDate || null, body.status || 'Unpaid', body.pdfPath || null]
+  );
+  auditService.logAction({ action: 'create', tableName: 'invoices', recordId: id, details: item });
+  return { data: item, status: 201 };
+}
+
+function updateInvoice(id, body) {
+  const invoice = entityRepository.findById('invoices', id);
+  if (!invoice) return { error: { status: 404, message: 'Invoice not found.' } };
+  const pairs = [];
+  if (typeof body.amount === 'number') pairs.push(['amount', body.amount]);
+  if (typeof body.currency === 'string') pairs.push(['currency', body.currency]);
+  if (typeof body.dueDate === 'string') pairs.push(['due_date', body.dueDate]);
+  if (typeof body.status === 'string') pairs.push(['status', body.status]);
+  if (typeof body.pdfPath === 'string') pairs.push(['pdf_path', body.pdfPath]);
