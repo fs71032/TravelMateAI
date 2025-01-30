@@ -243,4 +243,127 @@ function updateInvoice(id, body) {
   if (typeof body.currency === 'string') pairs.push(['currency', body.currency]);
   if (typeof body.dueDate === 'string') pairs.push(['due_date', body.dueDate]);
   if (typeof body.status === 'string') pairs.push(['status', body.status]);
-  if (typeof body.pdfPath === 'string') pairs.push(['pdf_path', body.pdfPath]);
+  if (typeof body.pdfPath === 'string') pairs.push(['pdf_path', body.pdfPath]);
+  if (!pairs.length) return { error: { status: 400, message: 'No valid fields to update.' } };
+  const updated = entityRepository.updateFields('invoices', id, pairs);
+  auditService.logAction({ action: 'update', tableName: 'invoices', recordId: id, details: updated });
+  return { data: updated };
+}
+
+function deleteInvoice(id) {
+  const result = entityRepository.remove('invoices', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Invoice not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'invoices', recordId: id });
+  return { status: 204 };
+}
+
+function listPayments() {
+  return { data: entityRepository.list('payments', 'created_at DESC') };
+}
+
+function createPayment(body) {
+  if (typeof body.amount !== 'number') {
+    return { error: { status: 400, message: 'Payment amount must be a number.' } };
+  }
+  const id = generateId('payment');
+  const item = entityRepository.insert(
+    'payments',
+    ['id', 'user_id', 'booking_id', 'amount', 'currency', 'status', 'method', 'paid_at'],
+    [id, body.userId || null, body.bookingId || null, body.amount, body.currency || 'EUR', body.status || 'Pending', body.method || null, body.paidAt || null]
+  );
+  auditService.logAction({ action: 'create', tableName: 'payments', recordId: id, details: item });
+  return { data: item, status: 201 };
+}
+
+function updatePayment(id, body) {
+  const payment = entityRepository.findById('payments', id);
+  if (!payment) return { error: { status: 404, message: 'Payment not found.' } };
+  const pairs = [];
+  if (typeof body.amount === 'number') pairs.push(['amount', body.amount]);
+  if (typeof body.currency === 'string') pairs.push(['currency', body.currency]);
+  if (typeof body.status === 'string') pairs.push(['status', body.status]);
+  if (typeof body.method === 'string') pairs.push(['method', body.method]);
+  if (typeof body.paidAt === 'string') pairs.push(['paid_at', body.paidAt]);
+  if (!pairs.length) return { error: { status: 400, message: 'No valid fields to update.' } };
+  const updated = entityRepository.updateFields('payments', id, pairs);
+  auditService.logAction({ action: 'update', tableName: 'payments', recordId: id, details: updated });
+  return { data: updated };
+}
+
+function deletePayment(id) {
+  const result = entityRepository.remove('payments', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Payment not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'payments', recordId: id });
+  return { status: 204 };
+}
+
+function listFiles() {
+  return { data: entityRepository.list('files', 'created_at DESC') };
+}
+
+function createFile(body, userId) {
+  const resolvedEntity = body.entity || body.relatedTable || null;
+  const resolvedEntityId = body.entityId || body.relatedId || null;
+  const resolvedPath = body.filePath || body.url;
+  if (!body.filename || !resolvedPath) {
+    return { error: { status: 400, message: 'filename and filePath (or url) are required.' } };
+  }
+  const id = generateId('file');
+  const now = sqlNow();
+  const item = entityRepository.insert(
+    'files',
+    ['id', 'entity', 'entity_id', 'filename', 'file_path', 'file_size', 'mime_type', 'uploaded_by', 'created_by', 'created_at', 'updated_at'],
+    [
+      id,
+      resolvedEntity,
+      resolvedEntityId,
+      body.filename.trim(),
+      resolvedPath.trim(),
+      typeof body.fileSize === 'number' ? body.fileSize : null,
+      body.mimeType || null,
+      userId || null,
+      userId || null,
+      now,
+      now
+    ]
+  );
+  auditService.logAction({ action: 'create', entity: 'files', entityId: id, newValue: item });
+  return { data: item, status: 201 };
+}
+
+function updateFile(id, body) {
+  const file = entityRepository.findById('files', id);
+  if (!file) return { error: { status: 404, message: 'File not found.' } };
+  const pairs = [];
+  const resolvedEntity = body.entity || body.relatedTable;
+  const resolvedEntityId = body.entityId || body.relatedId;
+  const resolvedPath = body.filePath || body.url;
+  if (typeof resolvedEntity === 'string') pairs.push(['entity', resolvedEntity]);
+  if (typeof resolvedEntityId === 'string') pairs.push(['entity_id', resolvedEntityId]);
+  if (typeof body.filename === 'string') pairs.push(['filename', body.filename.trim()]);
+  if (typeof body.mimeType === 'string') pairs.push(['mime_type', body.mimeType]);
+  if (typeof resolvedPath === 'string') pairs.push(['file_path', resolvedPath.trim()]);
+  if (typeof body.fileSize === 'number') pairs.push(['file_size', body.fileSize]);
+  if (!pairs.length) return { error: { status: 400, message: 'No valid fields to update.' } };
+  pairs.push(['updated_at', sqlNow()]);
+  const updated = entityRepository.updateFields('files', id, pairs);
+  auditService.logAction({ action: 'update', tableName: 'files', recordId: id, details: updated });
+  return { data: updated };
+}
+
+function deleteFile(id) {
+  const result = entityRepository.remove('files', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'File not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'files', recordId: id });
+  return { status: 204 };
+}
+
+function listReviews() {
+  return { data: entityRepository.list('reviews', 'created_at DESC') };
+}
+
+function createReview(body, userId) {
+  const resolvedEntity = body.entity || body.targetTable;
+  const resolvedEntityId = body.entityId || body.targetId;
+  if (!resolvedEntity || !resolvedEntityId || !userId) {
+    return { error: { status: 400, message: 'entity, entityId and authenticated user are required.' } };
