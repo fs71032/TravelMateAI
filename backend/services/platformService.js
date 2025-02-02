@@ -366,4 +366,126 @@ function createReview(body, userId) {
   const resolvedEntity = body.entity || body.targetTable;
   const resolvedEntityId = body.entityId || body.targetId;
   if (!resolvedEntity || !resolvedEntityId || !userId) {
-    return { error: { status: 400, message: 'entity, entityId and authenticated user are required.' } };
+    return { error: { status: 400, message: 'entity, entityId and authenticated user are required.' } };
+  }
+  const id = generateId('review');
+  const now = sqlNow();
+  const item = entityRepository.insert(
+    'reviews',
+    ['id', 'entity', 'entity_id', 'user_id', 'rating', 'comment', 'created_by', 'created_at', 'updated_at'],
+    [id, resolvedEntity, resolvedEntityId, userId, Number(body.rating) || 5, body.comment || null, userId, now, now]
+  );
+  auditService.logAction({ action: 'create', entity: 'reviews', entityId: id, newValue: item });
+  return { data: item, status: 201 };
+}
+
+function deleteReview(id) {
+  const existing = entityRepository.findById('reviews', id);
+  if (!existing) return { error: { status: 404, message: 'Review not found.' } };
+  entityRepository.remove('reviews', id);
+  auditService.logAction({ action: 'delete', tableName: 'reviews', recordId: id, details: existing });
+  return { data: { message: 'Review deleted.' } };
+}
+
+function listFavorites() {
+  return { data: entityRepository.list('favorites', 'created_at DESC') };
+}
+
+function createFavorite(body) {
+  const resolvedEntity = body.entity || body.targetTable;
+  const resolvedEntityId = body.entityId || body.targetId;
+  if (!body.userId || !resolvedEntity || !resolvedEntityId) {
+    return { error: { status: 400, message: 'userId, entity and entityId are required.' } };
+  }
+  const existing = entityRepository.listWhere(
+    'favorites',
+    'user_id = ? AND entity = ? AND entity_id = ?',
+    [body.userId, resolvedEntity, resolvedEntityId],
+    'created_at DESC'
+  )[0];
+  if (existing) return { data: existing };
+
+  const id = generateId('favorite');
+  const now = sqlNow();
+  const item = entityRepository.insert(
+    'favorites',
+    ['id', 'user_id', 'entity', 'entity_id', 'created_by', 'created_at', 'updated_at'],
+    [id, body.userId, resolvedEntity, resolvedEntityId, body.userId, now, now]
+  );
+  auditService.logAction({ action: 'create', entity: 'favorites', entityId: id, newValue: item });
+  return { data: item, status: 201 };
+}
+
+function deleteFavorite(id) {
+  const existing = entityRepository.findById('favorites', id);
+  if (!existing) return { error: { status: 404, message: 'Favorite not found.' } };
+  entityRepository.remove('favorites', id);
+  auditService.logAction({ action: 'delete', tableName: 'favorites', recordId: id, details: existing });
+  return { data: { message: 'Favorite removed.' } };
+}
+
+function updateNotification(id, body) {
+  const existing = entityRepository.findById('notifications', id);
+  if (!existing) return { error: { status: 404, message: 'Notification not found.' } };
+  const pairs = [];
+  if (typeof body.isRead === 'boolean') pairs.push(['is_read', body.isRead ? 1 : 0]);
+  if (typeof body.title === 'string') pairs.push(['title', body.title]);
+  if (typeof body.message === 'string') pairs.push(['message', body.message]);
+  if (!pairs.length) return { error: { status: 400, message: 'No valid fields to update.' } };
+  const updated = entityRepository.updateWithTimestamp('notifications', id, pairs);
+  auditService.logAction({ action: 'update', tableName: 'notifications', recordId: id, details: updated });
+  return { data: updated };
+}
+
+function deleteNotification(id) {
+  const result = entityRepository.remove('notifications', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Notification not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'notifications', recordId: id });
+  return { status: 204 };
+}
+
+module.exports = {
+  listSettings,
+  createSetting,
+  updateSetting,
+  listChatRooms,
+  createChatRoom,
+  getChatRoom,
+  updateChatRoom,
+  deleteChatRoom,
+  listGuides,
+  createGuide,
+  updateGuide,
+  deleteGuide,
+  listTravelGroups,
+  createTravelGroup,
+  updateTravelGroup,
+  deleteTravelGroup,
+  listGroupMembers,
+  createGroupMember,
+  deleteGroupMember,
+  listSuppliers,
+  createSupplier,
+  updateSupplier,
+  deleteSupplier,
+  listInvoices,
+  createInvoice,
+  updateInvoice,
+  deleteInvoice,
+  listPayments,
+  createPayment,
+  updatePayment,
+  deletePayment,
+  listFiles,
+  createFile,
+  updateFile,
+  deleteFile,
+  listReviews,
+  createReview,
+  deleteReview,
+  listFavorites,
+  createFavorite,
+  deleteFavorite,
+  updateNotification,
+  deleteNotification
+};
