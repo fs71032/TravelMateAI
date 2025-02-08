@@ -71,4 +71,77 @@ function updatePermission(id, body) {
 }
 
 function deletePermission(id) {
-  const result = entityRepository.remove('permissions', id);
+  const result = entityRepository.remove('permissions', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Permission not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'permissions', recordId: id });
+  return { status: 204 };
+}
+
+function listRolePermissions() {
+  return { data: entityRepository.list('role_permissions', 'created_at DESC') };
+}
+
+function createRolePermission({ roleId, permissionId }) {
+  if (!roleId || !permissionId) {
+    return { error: { status: 400, message: 'roleId and permissionId are required.' } };
+  }
+  const id = generateId('roleperm');
+  try {
+    const item = entityRepository.insert('role_permissions', ['id', 'role_id', 'permission_id'], [id, roleId, permissionId]);
+    auditService.logAction({ action: 'create', tableName: 'role_permissions', recordId: id, details: item });
+    return { data: item, status: 201 };
+  } catch (error) {
+    return { error: { status: 400, message: 'Role permission already exists or invalid role/permission.' } };
+  }
+}
+
+function deleteRolePermission(id) {
+  const result = entityRepository.remove('role_permissions', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'Role permission not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'role_permissions', recordId: id });
+  return { status: 204 };
+}
+
+function listUserRoles() {
+  return { data: entityRepository.list('user_roles', 'assigned_at DESC') };
+}
+
+function createUserRole({ userId, roleId }) {
+  if (!userId || !roleId) {
+    return { error: { status: 400, message: 'userId and roleId are required.' } };
+  }
+  const id = generateId('userrole');
+  try {
+    const item = entityRepository.insert('user_roles', ['id', 'user_id', 'role_id'], [id, userId, roleId]);
+    auditService.logAction({ action: 'create', tableName: 'user_roles', recordId: id, details: item });
+    return { data: item, status: 201 };
+  } catch (error) {
+    return { error: { status: 400, message: 'User role already exists or invalid user/role.' } };
+  }
+}
+
+function deleteUserRole(id) {
+  const result = entityRepository.remove('user_roles', id);
+  if (result.changes === 0) return { error: { status: 404, message: 'User role not found.' } };
+  auditService.logAction({ action: 'delete', tableName: 'user_roles', recordId: id });
+  return { status: 204 };
+}
+
+module.exports = {
+  listRoles,
+  createRole,
+  getRole,
+  updateRole,
+  deleteRole,
+  listPermissions,
+  createPermission,
+  getPermission,
+  updatePermission,
+  deletePermission,
+  listRolePermissions,
+  createRolePermission,
+  deleteRolePermission,
+  listUserRoles,
+  createUserRole,
+  deleteUserRole
+};
