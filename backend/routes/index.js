@@ -68,3 +68,72 @@ router.post('/roles', requireAuth, requireRole('admin'), rbacController.createRo
 router.get('/roles/:id', requireAuth, rbacController.getRole);
 router.patch('/roles/:id', requireAuth, requireRole('admin'), rbacController.updateRole);
 router.delete('/roles/:id', requireAuth, requireRole('admin'), rbacController.deleteRole);
+
+router.get('/permissions', requireAuth, rbacController.listPermissions);
+router.post('/permissions', requireAuth, requireRole('admin'), rbacController.createPermission);
+router.get('/permissions/:id', requireAuth, rbacController.getPermission);
+router.patch('/permissions/:id', requireAuth, requireRole('admin'), rbacController.updatePermission);
+router.delete('/permissions/:id', requireAuth, requireRole('admin'), rbacController.deletePermission);
+
+router.get('/role-permissions', requireAuth, rbacController.listRolePermissions);
+router.post('/role-permissions', requireAuth, requireRole('admin'), rbacController.createRolePermission);
+router.delete('/role-permissions/:id', requireAuth, requireRole('admin'), rbacController.deleteRolePermission);
+
+router.get('/user-roles', requireAuth, rbacController.listUserRoles);
+router.post('/user-roles', requireAuth, requireRole('admin'), rbacController.createUserRole);
+router.delete('/user-roles/:id', requireAuth, requireRole('admin'), rbacController.deleteUserRole);
+
+router.get('/settings', requireAuth, platformController.listSettings);
+router.post('/settings', requireAuth, platformController.createSetting);
+router.patch('/settings/:id', requireAuth, platformController.updateSetting);
+
+router.get('/guides', requireAuth, platformController.listGuides);
+router.post('/guides', requireAuth, platformController.createGuide);
+router.patch('/guides/:id', requireAuth, platformController.updateGuide);
+router.delete('/guides/:id', requireAuth, platformController.deleteGuide);
+
+router.get('/travel-groups', requireAuth, platformController.listTravelGroups);
+router.post('/travel-groups', requireAuth, platformController.createTravelGroup);
+router.patch('/travel-groups/:id', requireAuth, platformController.updateTravelGroup);
+router.delete('/travel-groups/:id', requireAuth, platformController.deleteTravelGroup);
+
+router.get('/group-members', requireAuth, platformController.listGroupMembers);
+router.post('/group-members', requireAuth, platformController.createGroupMember);
+router.delete('/group-members/:id', requireAuth, platformController.deleteGroupMember);
+
+router.get('/booking-suppliers', requireAuth, platformController.listSuppliers);
+router.post('/booking-suppliers', requireAuth, platformController.createSupplier);
+router.patch('/booking-suppliers/:id', requireAuth, platformController.updateSupplier);
+router.delete('/booking-suppliers/:id', requireAuth, platformController.deleteSupplier);
+
+router.get('/invoices', requireAuth, platformController.listInvoices);
+router.post('/invoices', requireAuth, platformController.createInvoice);
+router.patch('/invoices/:id', requireAuth, platformController.updateInvoice);
+router.delete('/invoices/:id', requireAuth, platformController.deleteInvoice);
+
+router.get('/payments', requireAuth, platformController.listPayments);
+router.post('/payments', requireAuth, platformController.createPayment);
+router.patch('/payments/:id', requireAuth, platformController.updatePayment);
+router.delete('/payments/:id', requireAuth, platformController.deletePayment);
+
+router.get('/files', requireAuth, platformController.listFiles);
+router.post('/files', requireAuth, platformController.createFile);
+router.patch('/files/:id', requireAuth, platformController.updateFile);
+router.delete('/files/:id', requireAuth, platformController.deleteFile);
+
+router.get('/reviews', requireAuth, platformController.listReviews);
+router.post('/reviews', requireAuth, platformController.createReview);
+router.delete('/reviews/:id', requireAuth, platformController.deleteReview);
+
+router.get('/favorites', requireAuth, platformController.listFavorites);
+router.post('/favorites', requireAuth, platformController.createFavorite);
+router.delete('/favorites/:id', requireAuth, platformController.deleteFavorite);
+
+router.get('/search', requireAuth, searchController.search);
+router.get('/export/:table', requireAuth, dataPortController.exportTable);
+router.post('/import/:table', requireAuth, requireRole('admin'), dataPortController.importTable);
+router.post('/reports/summary', requireAuth, dataPortController.reportSummary);
+
+router.get('/audit-logs', requireAuth, requireRole('admin'), auditController.list);
+
+module.exports = router;
