@@ -105,3 +105,108 @@ io.on('connection', (socket) => {
     if (normalizeEmail(tokenUser.email) !== normalizedEmail) {
       socket.emit('identify:error', { message: 'Token does not match user.' });
       return;
+    }
+
+    await setUserOnline(normalizedEmail, socket.id, {
+      email: tokenUser.email,
+      name: payload.name || tokenUser.name
+    });
+    socket.data.user = tokenUser;
+    socket.data.normalizedEmail = normalizedEmail;
+    socket.join('global');
+    socket.join(`user:${normalizedEmail}`);
+    io.to('global').emit('presence', await listOnlineUsers());
+  });
+
+  socket.on('join', (room) => {
+    socket.join(room);
+  });
+
+  socket.on('message', async (payload) => {
+    const { to, room, content, from, accessToken, token } = payload || {};
+    const tokenUser = socket.data.user || resolveUserFromAccessToken(accessToken || token);
+    if (!tokenUser) {
+      socket.emit('message:error', { message: 'Authentication required.' });
+      return;
+    }
+
+    let msg;
+    try {
+      msg = messageRepository.insertMessage({
+        from: from || tokenUser.email,
+        to: to || null,
+        room: room || 'global',
+        content
+      });
+    } catch (error) {
+      console.error('[socket] failed to store message:', error);
+      socket.emit('message:error', { message: 'Failed to send message.' });
+      return;
+    }
+
+    if (to) {
+      const target = await getOnlineUser(normalizeEmail(to));
+      if (target) io.to(target.socketId).emit('message', msg);
+      socket.emit('message', msg);
+    } else {
+      io.to(msg.room).emit('message', msg);
+    }
+
+    const senderEmail = normalizeEmail(msg.from);
+    const preview = String(content || '').trim().slice(0, 120);
+    if (to) {
+      const recipientEmail = normalizeEmail(to);
+      if (recipientEmail && recipientEmail !== senderEmail && preview) {
+        const notification = notificationRepository.createNotification({
+          type: 'chat',
+          title: 'New private message',
+          message: `${tokenUser.name || msg.from}: ${preview}`,
+          userEmail: to
+        });
+        emitNotification(notification);
+      }
+    } else if (msg.room === 'global' && preview) {
+      const senderName = tokenUser.name || msg.from;
+      const onlineUsers = await listOnlineUsers();
+      for (const entry of onlineUsers) {
+        const email = entry.email || entry.user?.email;
+        if (!email || normalizeEmail(email) === senderEmail) continue;
+        const notification = notificationRepository.createNotification({
+          type: 'chat',
+          title: 'New group message',
+          message: `${senderName}: ${preview}`,
+          userEmail: email
+        });
+        emitNotification(notification);
+      }
+    }
+  });
+
+  socket.on('disconnect', async () => {
+    const normalizedEmail = socket.data.normalizedEmail;
+    if (normalizedEmail) {
+      await removeUserOnline(normalizedEmail);
+      io.to('global').emit('presence', await listOnlineUsers());
+    }
+  });
+});
+
+const port = process.env.PORT || 4000;
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`\n[server] Port ${port} is already in use.`);
+    console.error('[server] Another backend is probably still running in another terminal.');
+    console.error('[server] Free the port and restart with: npm run start:clean');
+    console.error('[server] Or only free the port with: npm run kill-port\n');
+    process.exit(1);
+  }
+  throw error;
+});
+
+server.listen(port, () => {
+  console.log(`TravelMate API listening on http://localhost:${port}`);
+  console.log('[architecture] controllers -> services -> repositories');
+});
+
+module.exports = { app, server, io };
