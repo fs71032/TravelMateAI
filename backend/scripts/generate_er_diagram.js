@@ -115,3 +115,119 @@ const PRIMARY_RELATIONS = [
   { from: 'users', to: 'group_members', label: '1:N' },
   { from: 'chat_rooms', to: 'messages', label: '1:N' },
   { from: 'users', to: 'messages', label: 'from/to' },
+  { from: 'users', to: 'reviews', label: '1:N' },
+  { from: 'users', to: 'favorites', label: '1:N' }
+];
+
+const TABLE_W = 220;
+const ROW_H = 21;
+const HEADER_H = 30;
+const ZONE_COLORS = {
+  mandatory: { header: '#4a86c7', stroke: '#1c4587', fill: '#e8f0fe', text: '#ffffff' },
+  domain: { header: '#6aa84f', stroke: '#38761d', fill: '#e8f5e9', text: '#ffffff' }
+};
+
+function esc(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function loadSchema(db) {
+  const tables = {};
+  for (const entry of TABLE_CATALOG) {
+    const table = entry.name;
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+    const foreignKeys = db.prepare(`PRAGMA foreign_key_list(${table})`).all();
+    const fkByColumn = {};
+    for (const fk of foreignKeys) fkByColumn[fk.from] = fk.table;
+
+    const keySet = new Set(KEY_COLUMNS[table] || []);
+    const display = [];
+
+    display.push(columns.find((c) => c.pk === 1) || { name: 'id', pk: 1, type: 'TEXT' });
+
+    for (const colName of KEY_COLUMNS[table] || []) {
+      const col = columns.find((c) => c.name === colName);
+      if (col && !col.pk) {
+        display.push({
+          name: col.name,
+          type: col.type,
+          pk: false,
+          fk: fkByColumn[col.name] || null
+        });
+      }
+    }
+
+    display.push({ separator: true, label: 'audit: created_by, updated_by, created_at, updated_at' });
+
+    tables[table] = {
+      meta: entry,
+      displayColumns: display,
+      foreignKeys
+    };
+  }
+  return tables;
+}
+
+function assignLayout(schema) {
+  const positioned = {};
+  for (const entry of TABLE_CATALOG) {
+    const pos = POSITIONS[entry.name];
+    const def = schema[entry.name];
+    const rows = def.displayColumns;
+    const height = HEADER_H + rows.length * ROW_H + 6;
+    const colors = ZONE_COLORS[entry.zone];
+
+    positioned[entry.name] = {
+      x: pos.x,
+      y: pos.y,
+      height,
+      columns: rows,
+      meta: entry,
+      colors,
+      title: `${String(entry.n).padStart(2, '0')}. ${entry.name}`
+    };
+  }
+  return positioned;
+}
+
+function tableXml(name, def) {
+  const rows = def.columns;
+  const { header, stroke } = def.colors;
+  const parts = [];
+
+  parts.push(
+    `<mxCell id="${name}" parent="1" value="${esc(def.title)}" style="shape=table;startSize=${HEADER_H};container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;columnLines=1;fontStyle=1;align=center;resizeLast=1;html=1;fillColor=${header};strokeColor=${stroke};fontColor=#ffffff;rounded=1;shadow=1;" vertex="1">`,
+    `<mxGeometry x="${def.x}" y="${def.y}" width="${TABLE_W}" height="${def.height}" as="geometry"/>`,
+    `</mxCell>`
+  );
+
+  rows.forEach((col, index) => {
+    const rowId = `${name}_r${index}`;
+    const y = HEADER_H + index * ROW_H;
+    let keyLabel = '';
+    if (col.separator) keyLabel = '∗';
+    else if (col.pk) keyLabel = 'PK';
+    else if (col.fk) keyLabel = 'FK';
+
+    const label = col.separator ? col.label : col.fk ? `${col.name} → ${col.fk}` : col.name;
+    const italic = col.separator ? 'fontStyle=2;fontSize=9;fontColor=#64748b;' : col.pk ? 'fontStyle=4;' : 'fontSize=10;';
+
+    parts.push(
+      `<mxCell id="${rowId}" parent="${name}" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=${stroke};" vertex="1">`,
+      `<mxGeometry y="${y}" width="${TABLE_W}" height="${ROW_H}" as="geometry"/>`,
+      `</mxCell>`,
+      `<mxCell id="${rowId}_k" parent="${rowId}" value="${esc(keyLabel)}" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=${stroke};" vertex="1">`,
+      `<mxGeometry width="30" height="${ROW_H}" as="geometry"/>`,
+      `</mxCell>`,
+      `<mxCell id="${rowId}_n" parent="${rowId}" value="${esc(label)}" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=${stroke};${italic}" vertex="1">`,
+      `<mxGeometry x="30" width="${TABLE_W - 30}" height="${ROW_H}" as="geometry"/>`,
+      `</mxCell>`
+    );
+  });
+
+  return parts.join('\n');
+}
