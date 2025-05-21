@@ -231,3 +231,120 @@ function tableXml(name, def) {
 
   return parts.join('\n');
 }
+
+function sectionBand(id, x, y, w, h, title, subtitle, fill, stroke) {
+  return [
+    `<mxCell id="${id}" parent="1" value="${esc(title)}&#xa;${esc(subtitle)}" style="swimlane;startSize=44;fillColor=${fill};strokeColor=${stroke};fontStyle=1;fontSize=13;rounded=1;collapsible=0;horizontal=0;swimlaneFillColor=${fill};" vertex="1">`,
+    `<mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/>`,
+    `</mxCell>`
+  ].join('\n');
+}
+
+function flowArrow(id, x1, y1, x2, y2, label) {
+  return [
+    `<mxCell id="${id}" parent="1" value="${esc(label)}" style="endArrow=block;endFill=1;strokeWidth=2;strokeColor=#334155;fontStyle=1;fontSize=11;fontColor=#334155;dashed=0;" edge="1">`,
+    `<mxGeometry relative="1" as="geometry">`,
+    `<mxPoint x="${x1}" y="${y1}" as="sourcePoint"/>`,
+    `<mxPoint x="${x2}" y="${y2}" as="targetPoint"/>`,
+    `</mxGeometry>`,
+    `</mxCell>`
+  ].join('\n');
+}
+
+function relationXml(rel, index, tables) {
+  if (!tables[rel.from] || !tables[rel.to]) return '';
+  return [
+    `<mxCell id="rel_${index}" parent="1" source="${rel.from}" target="${rel.to}" value="${esc(rel.label)}" style="edgeStyle=entityRelationEdgeStyle;rounded=1;html=1;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;strokeWidth=1.5;strokeColor=#475569;fontSize=10;fontColor=#334155;" edge="1">`,
+    `<mxGeometry relative="1" as="geometry"/>`,
+    `</mxCell>`
+  ].join('\n');
+}
+
+function generateDiagram(db) {
+  const schema = loadSchema(db);
+  const tables = assignLayout(schema);
+  const version = db.pragma('user_version', { simple: true });
+
+  const bands = [
+    sectionBand('band_mandatory', 20, 70, 790, 920,
+      'SEKSIONI A — Tabelat e detyrueshme (10) + files',
+      'Infrastrukturë: autentifikim, autorizim (RBAC), audit, njoftime, skedarë',
+      '#dbeafe', '#1e40af'),
+    sectionBand('band_domain', 830, 70, 810, 1120,
+      'SEKSIONI B — Domeni TravelMate (14 tabela)',
+      'Destinacione → plane → rezervime → pagesa · grupe · chat · vlerësime',
+      '#dcfce7', '#166534')
+  ].join('\n');
+
+  const domainFlows = [
+    flowArrow('flow1', 970, 280, 970, 350, 'plan'),
+    flowArrow('flow2', 970, 480, 970, 560, 'ditë'),
+    flowArrow('flow3', 1230, 280, 1230, 350, 'rezervim'),
+    flowArrow('flow4', 1230, 480, 1230, 560, 'faturë'),
+    flowArrow('flow5', 1490, 280, 1490, 330, 'anetar'),
+    flowArrow('flow6', 1490, 620, 1490, 690, 'mesazh')
+  ].join('\n');
+
+  const professorGuide = `
+<mxCell id="guide_sq" parent="1" value="&lt;b&gt;Si ta shpjegosh profesorit (1–2 min)&lt;/b&gt;&#xa;&#xa;① &lt;b&gt;24 tabela&lt;/b&gt; SQLite, 3NF, FK + indekse, audit në çdo tabelë&#xa;② &lt;b&gt;Seksioni A&lt;/b&gt;: 10 të detyrueshme — users pa kolonë role (RBAC përmes user_roles)&#xa;③ &lt;b&gt;Seksioni B&lt;/b&gt;: 14 të domenit — rrjedha: destinacion → plan → itinerar → rezervim → pagesë&#xa;④ &lt;b&gt;Polimorfike&lt;/b&gt;: reviews, favorites, files (entity + entity_id, pa FK të detyrueshme)&#xa;⑤ &lt;b&gt;Numrat 01–24&lt;/b&gt; = rendi i tabelave në dokumentacion" style="text;html=1;strokeColor=#1e40af;fillColor=#f0f9ff;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;fontSize=11;rounded=1;shadow=1;" vertex="1">
+  <mxGeometry x="20" y="1020" width="790" height="130" as="geometry"/>
+</mxCell>`;
+
+  const catalogBox = `
+<mxCell id="catalog" parent="1" value="&lt;b&gt;Katalogu i tabelave (01–24)&lt;/b&gt;&#xa;${TABLE_CATALOG.map((t) => `${String(t.n).padStart(2, '0')}. ${t.name} — ${t.sq}`).join('&#xa;')}" style="text;html=1;strokeColor=#166534;fillColor=#f0fdf4;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;fontSize=10;rounded=1;" vertex="1">
+  <mxGeometry x="830" y="1210" width="810" height="320" as="geometry"/>
+</mxCell>`;
+
+  const title = `
+<mxCell id="title" parent="1" value="TravelMate AI — Diagrami Entitet-Relacion (ERD)&#xa;Databazë relacionale · ${BUSINESS_TABLES.length} tabela · schema v${version}" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=20;fontColor=#0f172a;" vertex="1">
+  <mxGeometry x="200" y="16" width="1200" height="50" as="geometry"/>
+</mxCell>`;
+
+  const legend = `
+<mxCell id="legend" parent="1" value="Legjenda: PK = çelës primar · FK = çelës i huaj · ∗ = audit (created_by, updated_by, created_at, updated_at → users) · N:N = shumë-me-shumë · Vijat e trasha = rrjedha e domenit" style="text;html=1;strokeColor=#94a3b8;fillColor=#f8fafc;align=center;fontSize=11;rounded=1;" vertex="1">
+  <mxGeometry x="20" y="1170" width="790" height="36" as="geometry"/>
+</mxCell>`;
+
+  const tableCells = Object.entries(tables).map(([name, def]) => tableXml(name, def)).join('\n');
+  const relationCells = PRIMARY_RELATIONS.map((rel, i) => relationXml(rel, i, tables)).join('\n');
+
+  const pageH = 1580;
+  const pageW = 1680;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="${new Date().toISOString()}" agent="TravelMateAI" version="22.1.0" type="device">
+  <diagram id="travelmate-er" name="TravelMateAI ERD — Akademik">
+    <mxGraphModel dx="2400" dy="${pageH}" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${pageW}" pageHeight="${pageH}" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        ${title}
+        ${bands}
+        ${tableCells}
+        ${domainFlows}
+        ${relationCells}
+        ${professorGuide}
+        ${catalogBox}
+        ${legend}
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>`;
+}
+
+const BUSINESS_TABLES = TABLE_CATALOG.map((t) => t.name);
+
+function main() {
+  const { db } = require('../db');
+  const xml = generateDiagram(db);
+
+  const outDir = path.join(__dirname, '..', '..', 'docs');
+  const outPath = path.join(outDir, 'TravelMateAI-ER-Diagram.drawio');
+
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outPath, xml, 'utf8');
+  console.log(`[er] wrote ${outPath}`);
+  console.log(`[er] ${BUSINESS_TABLES.length} tables (academic layout), schema v${db.pragma('user_version', { simple: true })}`);
+}
+
+main();
