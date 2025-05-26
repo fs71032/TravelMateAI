@@ -108,3 +108,114 @@ function parametersFor(routePath, method) {
       { name: 'fts', in: 'query', schema: { type: 'boolean' }, description: 'Use full-text search' }
     );
   }
+
+  if (method === 'get' && !routePath.includes(':') && !['/health', '/search', '/itinerary/status', '/chat/history'].includes(routePath)) {
+    params.push(
+      { name: 'limit', in: 'query', schema: { type: 'integer' } },
+      { name: 'offset', in: 'query', schema: { type: 'integer' } }
+    );
+  }
+
+  return params.length ? params : undefined;
+}
+
+function requestBodyFor(method, routePath) {
+  if (!['post', 'patch', 'put'].includes(method)) return undefined;
+  if (method === 'post' && routePath.startsWith('/import/')) {
+    return {
+      required: true,
+      content: {
+        'application/json': { schema: { type: 'object', additionalProperties: true } },
+        'text/csv': { schema: { type: 'string' } }
+      }
+    };
+  }
+  return {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object', additionalProperties: true }
+      }
+    }
+  };
+}
+
+function responsesFor(method) {
+  const base = {
+    200: { description: 'Success' },
+    400: { description: 'Bad request' },
+    401: { description: 'Unauthorized — JWT required or invalid' },
+    403: { description: 'Forbidden — insufficient role' },
+    404: { description: 'Not found' },
+    500: { description: 'Server error' }
+  };
+  if (method === 'post') base[201] = { description: 'Created' };
+  if (method === 'delete') base[204] = { description: 'Deleted' };
+  return base;
+}
+
+function buildSpec(routes) {
+  const paths = {};
+
+  for (const route of routes) {
+    const apiPath = toOpenApiPath(route.routePath);
+    if (!paths[apiPath]) paths[apiPath] = {};
+
+    const op = {
+      tags: [tagFor(route.routePath)],
+      summary: summaryFor(route.method, route.routePath, route.handler),
+      operationId: `${route.method}_${route.routePath.replace(/[/:]/g, '_').replace(/^_/, '')}`,
+      responses: responsesFor(route.method)
+    };
+
+    const sec = securityFor(route);
+    if (sec.length) op.security = sec;
+
+    if (route.adminRole) {
+      op.description = `Requires authenticated user with role: ${route.adminRole}`;
+    } else if (route.requiresAuth) {
+      op.description = 'Requires valid JWT access token (Authorization: Bearer …)';
+    }
+
+    const params = parametersFor(route.routePath, route.method);
+    if (params) op.parameters = params;
+
+    const body = requestBodyFor(route.method, route.routePath);
+    if (body) op.requestBody = body;
+
+    paths[apiPath][route.method] = op;
+  }
+
+  return {
+    openapi: '3.0.3',
+    info: {
+      title: 'TravelMate AI Backend API',
+      version: '1.0.0',
+      description:
+        'REST API for TravelMate AI — travel planning, bookings, chat, RBAC, and platform services.\n\n' +
+        '**Authentication:** Most endpoints require `Authorization: Bearer <accessToken>` from `POST /api/auth/login`.\n\n' +
+        '**Interactive docs:** When the backend is running, open [http://localhost:4000/api/docs](http://localhost:4000/api/docs).\n\n' +
+        '**Default admin (dev):** `admin@travelmate.ai` / `Test1234`'
+    },
+    servers: [{ url: 'http://localhost:4000', description: 'Local development' }],
+    tags: [...new Set(routes.map((r) => tagFor(r.routePath)))].sort().map((name) => ({ name })),
+    paths,
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Access token from POST /api/auth/login or /api/auth/refresh'
+        }
+      }
+    }
+  };
+}
+
+const source = fs.readFileSync(routesPath, 'utf8');
+const routes = parseRoutes(source);
+const spec = buildSpec(routes);
+fs.writeFileSync(outPath, `${JSON.stringify(spec, null, 2)}\n`, 'utf8');
+
+console.log(`[openapi] Wrote ${routes.length} operations to ${outPath}`);
