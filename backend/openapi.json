@@ -1,0 +1,955 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TravelMate AI Backend API",
+    "version": "1.0.0",
+    "description": "REST API for TravelMate AI — travel planning, bookings, chat, RBAC, and platform services.\n\n**Authentication:** Most endpoints require `Authorization: Bearer <accessToken>` from `POST /api/auth/login`.\n\n**Interactive docs:** When the backend is running, open [http://localhost:4000/api/docs](http://localhost:4000/api/docs).\n\n**Default admin (dev):** `admin@travelmate.ai` / `Test1234`"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Audit"
+    },
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Billing"
+    },
+    {
+      "name": "Bookings"
+    },
+    {
+      "name": "Chat"
+    },
+    {
+      "name": "Data Export/Import"
+    },
+    {
+      "name": "Destinations"
+    },
+    {
+      "name": "Favorites"
+    },
+    {
+      "name": "Files"
+    },
+    {
+      "name": "Guides"
+    },
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Itinerary"
+    },
+    {
+      "name": "Notifications"
+    },
+    {
+      "name": "Platform"
+    },
+    {
+      "name": "RBAC"
+    },
+    {
+      "name": "Reports"
+    },
+    {
+      "name": "Reviews"
+    },
+    {
+      "name": "Search"
+    },
+    {
+      "name": "Suppliers"
+    },
+    {
+      "name": "Travel Groups"
+    },
+    {
+      "name": "Users"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "List health",
+        "operationId": "get_health",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Create auth/login",
+        "operationId": "post_auth_login",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Create auth/register",
+        "operationId": "post_auth_register",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/update": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Create auth/update",
+        "operationId": "post_auth_update",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Create auth/refresh",
+        "operationId": "post_auth_refresh",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/refresh-tokens": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "List refresh-tokens",
+        "operationId": "get_refresh-tokens",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires authenticated user with role: admin",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/refresh-tokens/:id": {
+      "delete": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Delete refresh-tokens/{id}",
+        "operationId": "delete_refresh-tokens__id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires authenticated user with role: admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "id identifier"
+          }
+        ]
+      }
+    },
+    "/api/itinerary/status": {
+      "get": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "List itinerary/status",
+        "operationId": "get_itinerary_status",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)"
+      }
+    },
+    "/api/itinerary/generate": {
+      "post": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "Create itinerary/generate",
+        "operationId": "post_itinerary_generate",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/itinerary/plans": {
+      "get": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "List itinerary/plans",
+        "operationId": "get_itinerary_plans",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "Create itinerary/plans",
+        "operationId": "post_itinerary_plans",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/itinerary/plans/:id": {
+      "delete": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "Delete itinerary/plans/{id}",
+        "operationId": "delete_itinerary_plans__id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "id identifier"
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "Get by ID itinerary/plans/{id}",
+        "operationId": "get_itinerary_plans__id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "id identifier"
+          }
+        ]
+      }
+    },
+    "/api/itinerary/items": {
+      "get": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "List itinerary/items",
+        "operationId": "get_itinerary_items",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "Create itinerary/items",
+        "operationId": "post_itinerary_items",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/itinerary/items/:id": {
+      "patch": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "Update itinerary/items/{id}",
+        "operationId": "patch_itinerary_items__id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "id identifier"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Itinerary"
+        ],
+        "summary": "Delete itinerary/items/{id}",
+        "operationId": "delete_itinerary_items__id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "id identifier"
+          }
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List notifications",
+        "operationId": "get_notifications",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Create notifications",
+        "operationId": "post_notifications",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized — JWT required or invalid"
+          },
+          "403": {
+            "description": "Forbidden — insufficient role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Requires valid JWT access token (Authorization: Bearer …)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
