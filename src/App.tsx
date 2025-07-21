@@ -130,3 +130,134 @@ function App() {
                           navigate('/admin/users');
                         }}
                         className="w-full px-4 py-3 text-left text-sm text-slate-100 transition hover:bg-slate-900"
+                      >
+                        Manage users
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="w-full px-4 py-3 text-left text-sm text-rose-300 transition hover:bg-slate-900"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link to="/login" className="btn btn-primary text-sm px-4 py-2">
+                Sign in
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <Suspense fallback={<RouteLoader />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth>
+                  <DashboardPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/planner"
+              element={
+                <RequireAuth>
+                  <TripPlannerPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/bookings"
+              element={
+                <RequireAuth>
+                  <BookingsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reviews"
+              element={
+                <RequireAuth>
+                  <ReviewsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/favorites"
+              element={
+                <RequireAuth>
+                  <FavoritesPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/search"
+              element={
+                <RequireAuth>
+                  <SearchPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/import"
+              element={
+                <RequireAuth>
+                  <ImportPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <RequireAuth>
+                  <ChatPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <RequireAuth>
+                  <ReportsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <RequireRole role="admin">
+                  <UserManagementPage />
+                </RequireRole>
+              }
+            />
+            <Route path="/destinations" element={<DestinationsPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/profile"
+              element={
+                <RequireAuth>
+                  <ProfilePage />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </Suspense>
+      </main>
+
+      {!isLanding && (
+        <footer className="border-t border-slate-800 bg-slate-950 px-6 py-6 text-sm text-slate-500">
+          <div className="mx-auto max-w-7xl">TravelMate AI · Intelligent travel planning designed for enterprise-ready experiences.</div>
+        </footer>
+      )}
+    </div>
+  );
+}
+
+export default App;
