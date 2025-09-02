@@ -151,3 +151,155 @@ async function readResponseBody<T>(response: Response): Promise<{ data: T | null
     return { data: null, isJson: false };
   }
 }
+
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const { data } = await readResponseBody<T>(response);
+  return data ?? ({} as T);
+}
+
+export async function fetchItineraryStatus(): Promise<ItineraryStatus | null> {
+  try {
+    const response = await authFetch('/api/itinerary/status');
+    if (!response.ok) {
+      return null;
+    }
+    return await parseJsonResponse<ItineraryStatus>(response);
+  } catch {
+    return null;
+  }
+}
+
+function isOfflineError(error: unknown): boolean {
+  const message = (error as Error).message?.toLowerCase() || '';
+  return (
+    error instanceof TypeError ||
+    message.includes('failed to fetch') ||
+    message.includes('network') ||
+    message.includes('load failed')
+  );
+}
+
+async function savePlanToDatabase(
+  request: ItineraryRequest,
+  result: Pick<ItineraryGeneration, 'items' | 'source'>
+) {
+  const { persistPlan } = await import('./tripPlanStorage');
+  return persistPlan({
+    id: request.planId,
+    name: request.planName || `${request.destination} trip`,
+    destination: request.destination,
+    days: request.days,
+    style: request.style,
+    budget: request.budget || '',
+    customPrompt: request.customPrompt || '',
+    items: result.items,
+    source: result.source,
+    userEmail: request.userEmail,
+    plannedDate: request.plannedDate
+  });
+}
+
+function sanitizePlannerMessage(message?: string) {
+  if (!message?.trim()) {
+    return undefined;
+  }
+
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes('openai request failed') ||
+    normalized.includes('invalid_api_key') ||
+    normalized.includes('incorrect api key') ||
+    normalized.includes('sk-your')
+  ) {
+    return undefined;
+  }
+
+  return message.trim();
+}
+
+function plannerError(response: Response, data: { message?: string } | null) {
+  if (response.status === 401) {
+    return 'Your session expired. Sign out and sign in again, then try Generate.';
+  }
+  const safeMessage = sanitizePlannerMessage(data?.message);
+  if (safeMessage) {
+    return safeMessage;
+  }
+  if (response.status >= 500) {
+    return 'The planner server is not responding. Restart the backend (npm start).';
+  }
+  return 'Could not generate the itinerary. Make sure the backend is running on port 4000.';
+}
+
+export async function generateItinerary(request: ItineraryRequest): Promise<ItineraryGeneration> {
+  const shouldSave = request.saveToDatabase !== false;
+
+  try {
+    const response = await authFetch('/api/itinerary/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request)
+    });
+
+    const { data, isJson } = await readResponseBody<
+      ItineraryGeneration & { message?: string; savedPlan?: TripPlan }
+    >(response);
+
+    if (data && Array.isArray(data.items) && data.items.length > 0) {
+      const normalized = normalizeItineraryItems(data.items);
+      if (itemsHaveRealContent(normalized)) {
+        return {
+          prompt: data.prompt || '',
+          items: normalized,
+          source: data.source,
+          aiEnabled: data.aiEnabled,
+          livePlacesEnabled: data.livePlacesEnabled,
+          openStreetMapEnabled: data.openStreetMapEnabled,
+          googleEnabled: data.googleEnabled,
+          message: sanitizePlannerMessage(data.message),
+          usedFallback: false,
+          savedPlan: data.savedPlan
+        };
+      }
+    }
+
+    if (!response.ok || !isJson) {
+      throw new Error(plannerError(response, data));
+    }
+
+    throw new Error(
+      sanitizePlannerMessage(data?.message) ||
+        'The planner returned an empty response. Try again or change the destination.'
+    );
+  } catch (error) {
+    const errMessage = error instanceof Error ? error.message : '';
+    if (
+      errMessage.toLowerCase().includes('openai') ||
+      errMessage.toLowerCase().includes('invalid_api_key')
+    ) {
+      throw new Error(
+        'OpenAI is not configured. Itineraries use live map data and curated profiles — restart the backend (npm start) and try again.'
+      );
+    }
+    if (shouldSave && isOfflineError(error)) {
+      const local = {
+        ...generateItineraryLocal(request),
+        source: 'template' as const,
+        aiEnabled: false,
+        usedFallback: true,
+        message:
+          'Backend unavailable — an offline plan was created. Start the backend for live map places.'
+      };
+      try {
+        local.savedPlan = await savePlanToDatabase(request, local);
+      } catch {
+        // keep offline plan without DB save
+      }
+      return local;
+    }
+
+    throw error instanceof Error
+      ? error
+      : new Error('Generation failed. Restart the backend and try again.');
+  }
+}
