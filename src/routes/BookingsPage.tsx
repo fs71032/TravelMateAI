@@ -225,4 +225,116 @@ function BookingsPage() {
 
       {loading ? (
         <div className="text-center text-slate-400">Loading bookings...</div>
-      ) : (
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
+          <div className="space-y-6">
+            {bookings.length === 0 ? (
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 text-center text-slate-400">
+                No bookings yet. Create your first booking!
+              </div>
+            ) : (
+              bookings.map((booking) => {
+                const isBusy = busyId === booking.id;
+                return (
+                  <article key={booking.id} className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-soft">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.25em] text-slate-400">{booking.type}</p>
+                        <h2 className="mt-2 text-2xl font-semibold text-white">{booking.title}</h2>
+                      </div>
+                      <div className="space-x-2 text-sm">
+                        <span
+                          className={`rounded-full px-3 py-1 ${
+                            booking.status === 'Confirmed'
+                              ? 'bg-emerald-500/10 text-emerald-300'
+                              : booking.status === 'Cancelled'
+                                ? 'bg-rose-500/10 text-rose-300'
+                                : 'bg-cyan-500/10 text-cyan-300'
+                          }`}
+                        >
+                          {booking.status}
+                        </span>
+                        <span className="rounded-full bg-slate-950/80 px-3 py-1 text-slate-200">{booking.date}</span>
+                      </div>
+                    </div>
+                    {booking.details && <p className="mt-4 text-slate-400">{booking.details}</p>}
+                    <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                      {booking.amount && <span>{booking.amount}</span>}
+                      {booking.amount && booking.location && <span className="text-slate-500">•</span>}
+                      {booking.location && <span>{booking.location}</span>}
+                    </div>
+                    <div className="mt-6 flex flex-wrap gap-2">
+                      {booking.status !== 'Confirmed' && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleStatusChange(booking.id, 'Confirmed')}
+                          className="rounded-full border border-emerald-700 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
+                        >
+                          {isBusy ? 'Updating…' : 'Mark confirmed'}
+                        </button>
+                      )}
+                      {booking.status !== 'Pending' && booking.status !== 'Cancelled' && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleStatusChange(booking.id, 'Pending')}
+                          className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-cyan-400 disabled:opacity-50"
+                        >
+                          Mark pending
+                        </button>
+                      )}
+                      {booking.status !== 'Cancelled' && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleStatusChange(booking.id, 'Cancelled')}
+                          className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-rose-400 disabled:opacity-50"
+                        >
+                          Cancel booking
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => handleDelete(booking.id, booking.title)}
+                        className="rounded-full border border-rose-800 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+
+          <aside className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-soft">
+            <h2 className="text-xl font-semibold text-white">Booking summary</h2>
+            <p className="mt-3 text-slate-400">Live totals from your saved bookings.</p>
+            <div className="mt-6 space-y-4 text-slate-300">
+              <div className="rounded-3xl bg-slate-950/70 p-4">
+                <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Pending approval</p>
+                <p className="mt-2 text-lg font-semibold text-white">
+                  {pendingCount} booking{pendingCount !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div className="rounded-3xl bg-slate-950/70 p-4">
+                <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Confirmed</p>
+                <p className="mt-2 text-lg font-semibold text-white">
+                  {confirmedCount} booking{confirmedCount !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div className="rounded-3xl bg-slate-950/70 p-4">
+                <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Total committed</p>
+                <p className="mt-2 text-lg font-semibold text-white">€{totalAmount.toFixed(2)}</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default BookingsPage;
