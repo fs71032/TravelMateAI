@@ -141,3 +141,144 @@ function ChatPage() {
 
   const startPrivateChat = (email: string) => {
     setSelectedRecipient(email);
+    setDirectoryQuery('');
+    setDirectoryResults([]);
+  };
+ 
+  const currentEmail = user?.user.email;
+  const displayMessages = messages.filter((message) => {
+    if (selectedRecipient === 'global') {
+      return message.room === 'global';
+    }
+    return (
+      (message.from === currentEmail && message.to === selectedRecipient) ||
+      (message.from === selectedRecipient && message.to === currentEmail)
+    );
+  });
+  const selectedName = selectedRecipient === 'global' ? 'Group' : online.find((u) => u.email === selectedRecipient)?.name || selectedRecipient;
+ 
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
+      <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Live communication</p>
+          <h1 className="mt-3 text-4xl font-semibold text-white sm:text-5xl">Travel group chat & guide coordination.</h1>
+        </div>
+        <div className="rounded-full border border-slate-800 bg-slate-900/70 px-5 py-3 text-sm text-slate-300">
+          Real-time updates keep group logistics aligned.
+        </div>
+      </div>
+ 
+      <div className="grid gap-8 lg:grid-cols-[1.5fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 shadow-soft">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Conversation</h2>
+              <p className="mt-2 text-slate-400">Chat with guides, travelers, and booking managers.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedRecipient('global')}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedRecipient === 'global' ? 'bg-cyan-400 text-slate-950' : 'border border-slate-700 bg-slate-950 text-slate-300 hover:border-cyan-300'}`}>
+                Global
+              </button>
+              {online
+                .filter((u) => u.email !== currentEmail)
+                .map((userItem) => (
+                  <button
+                    type="button"
+                    key={userItem.email}
+                    onClick={() => setSelectedRecipient(userItem.email || 'global')}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedRecipient === userItem.email ? 'bg-cyan-400 text-slate-950' : 'border border-slate-700 bg-slate-950 text-slate-300 hover:border-cyan-300'}`}>
+                    {userItem.name || userItem.email}
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={directoryQuery}
+                onChange={(e) => setDirectoryQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleDirectorySearch();
+                  }
+                }}
+                placeholder="Find someone to message privately…"
+                className="w-full max-w-xs rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-400"
+              />
+              <button
+                type="button"
+                onClick={handleDirectorySearch}
+                disabled={searchingDirectory}
+                className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-300 disabled:opacity-50"
+              >
+                {searchingDirectory ? 'Searching…' : 'Find'}
+              </button>
+            </div>
+            {directoryResults.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {directoryResults.map((u) => (
+                  <button
+                    type="button"
+                    key={u.email}
+                    onClick={() => startPrivateChat(u.email)}
+                    className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-300"
+                  >
+                    Message {u.name || u.email}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white">{selectedRecipient === 'global' ? 'Global Chat' : `Private chat with ${selectedName}`}</h3>
+              <p className="text-sm text-slate-400">{selectedRecipient === 'global' ? 'Everyone in the travel room can see this.' : 'Messages are sent privately to the selected user.'}</p>
+            </div>
+            <span className={`rounded-full px-4 py-2 text-sm ${socketConnected ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'}`}>
+              {socketConnected ? `Connected · ${online.length} online` : 'Disconnected'}
+            </span>
+          </div>
+ 
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            {displayMessages.map((message) => (
+              <div key={message.id} className="min-w-0 rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-cyan-300">{message.from}</span>
+                  <span className="shrink-0 whitespace-nowrap text-xs text-slate-500">{formatDisplayDateTime(message.time)}</span>
+                </div>
+                <p className="mt-3 break-words text-slate-200">{message.content}</p>
+              </div>
+            ))}
+          </div>
+ 
+          <div className="mt-8 flex flex-col gap-3 rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+            <textarea
+              rows={4}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="min-h-[140px] resize-none rounded-3xl border border-slate-800 bg-slate-900/90 px-4 py-3 text-slate-100 outline-none transition focus:border-cyan-400"
+              placeholder={`Message ${selectedRecipient === 'global' ? 'the group' : selectedName}...`}
+            />
+            <div className="flex items-center gap-3">
+              <button onClick={sendMessage} className="ml-auto btn btn-primary">
+                Send message
+              </button>
+            </div>
+          </div>
+        </div>
+ 
+        <ChatSidebar messages={globalMessages} users={online} />
+      </div>
+    </section>
+  );
+}
+
+export default ChatPage;
