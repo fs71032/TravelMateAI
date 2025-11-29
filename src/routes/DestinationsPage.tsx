@@ -61,4 +61,66 @@ function DestinationsPage() {
         )}
       </div>
 
-      {error && (
+      {error && (
+        <div className="mb-6 rounded-3xl border border-rose-600 bg-rose-500/10 p-4 text-sm text-rose-200">
+          {error}
+        </div>
+      )}
+
+      {(successMessage || favoriteError) && (
+        <div className="mb-6 space-y-3">
+          {successMessage && (
+            <div className="rounded-3xl border border-emerald-600 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+              {successMessage}
+            </div>
+          )}
+          {favoriteError && (
+            <div className="rounded-3xl border border-rose-600 bg-rose-500/10 p-4 text-sm text-rose-200">
+              {favoriteError}
+            </div>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center text-slate-400">Loading destinations...</div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {destinations.map((destination) => (
+            <article key={destination.id} className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-soft">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.25em] text-slate-400">{destination.category}</p>
+                  <h2 className="mt-3 text-2xl font-semibold text-white">{destination.name}</h2>
+                </div>
+                <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-sm font-semibold text-cyan-300">{destination.price}</span>
+              </div>
+              <p className="text-slate-400">{destination.location}</p>
+              {destination.description && <p className="mt-3 text-sm text-slate-500">{destination.description}</p>}
+              <div className="mt-6 flex flex-col gap-3 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+                <span>{destination.rating} ★</span>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Link
+                    to={`/planner?destination=${encodeURIComponent(destination.name)}`}
+                    className="rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs transition hover:border-cyan-400"
+                  >
+                    Plan trip
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleFavorite(destination.id)}
+                    className="rounded-full border border-cyan-500 bg-cyan-500/10 px-4 py-2 text-xs text-cyan-300 transition hover:bg-cyan-500/20"
+                  >
+                    Save favorite
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default DestinationsPage;
