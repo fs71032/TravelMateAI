@@ -98,3 +98,103 @@ function ReportsPage() {
           />
         </label>
       </div>
+
+      <div className="mt-4">
+        <span className="text-sm text-slate-300">Metrics</span>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {METRIC_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm ${
+                metrics.includes(option.value) ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 bg-slate-950 text-slate-300'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={metrics.includes(option.value)}
+                onChange={() => toggleMetric(option.value)}
+                className="h-4 w-4"
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <label className="mt-4 block max-w-xs">
+        <span className="text-sm text-slate-300">Breakdown</span>
+        <select
+          value={groupBy}
+          onChange={(e) => setGroupBy(e.target.value as ReportGroupBy | '')}
+          className="mt-1 w-full rounded border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100"
+        >
+          {GROUP_BY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      </label>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button onClick={handleGenerate} disabled={loading} className="rounded bg-cyan-400 px-4 py-2 text-slate-900 disabled:opacity-50">
+          {loading ? 'Generating…' : 'Generate report'}
+        </button>
+        <button
+          onClick={() => handleExport('csv')}
+          disabled={!result || exportingFormat === 'csv'}
+          className="rounded border border-slate-700 bg-slate-950 px-4 py-2 text-sm disabled:opacity-50"
+        >
+          {exportingFormat === 'csv' ? 'Exporting…' : 'Export CSV'}
+        </button>
+        <button
+          onClick={() => handleExport('excel')}
+          disabled={!result || exportingFormat === 'excel'}
+          className="rounded border border-slate-700 bg-slate-950 px-4 py-2 text-sm disabled:opacity-50"
+        >
+          {exportingFormat === 'excel' ? 'Exporting…' : 'Export Excel'}
+        </button>
+      </div>
+
+      {error && <div className="mt-4 text-rose-400">{error}</div>}
+
+      {result && (
+        <div className="mt-8 space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Summary</h2>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(result.summary).map(([metric, value]) => (
+                <div key={metric} className="rounded border border-slate-800 bg-slate-900 p-4">
+                  <div className="text-sm text-slate-400">{METRIC_OPTIONS.find((m) => m.value === metric)?.label || metric}</div>
+                  <div className="mt-1 text-2xl font-semibold text-white">{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {result.breakdown.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-white">Breakdown</h2>
+              <table className="mt-2 w-full text-left text-sm text-slate-200">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400">
+                    <th className="py-2">Group</th>
+                    <th className="py-2">Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.breakdown.map((row) => (
+                    <tr key={row.group_key} className="border-b border-slate-900">
+                      <td className="py-2">{row.group_key}</td>
+                      <td className="py-2">{row.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default ReportsPage;
