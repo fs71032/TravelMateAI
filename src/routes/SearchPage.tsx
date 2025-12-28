@@ -144,3 +144,147 @@ function SearchPage() {
           onChange={(e) => dispatch(setSearchCategory(e.target.value))}
           placeholder="Destination category"
           className="rounded border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100"
+        />
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => dispatch(setSearchDateFrom(e.target.value))}
+          className="rounded border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100"
+          aria-label="Booking date from"
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => dispatch(setSearchDateTo(e.target.value))}
+          className="rounded border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100"
+          aria-label="Booking date to"
+        />
+        <select
+          value={bookingsSort}
+          onChange={(e) => dispatch(setBookingsSort(e.target.value))}
+          className="rounded border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100"
+        >
+          {BOOKINGS_SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>Bookings: {opt.label}</option>
+          ))}
+        </select>
+        <select
+          value={destinationsSort}
+          onChange={(e) => dispatch(setDestinationsSort(e.target.value))}
+          className="rounded border border-slate-800 bg-slate-900 px-3 py-2 text-slate-100"
+        >
+          {DESTINATIONS_SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>Destinations: {opt.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {loading && <div className="mt-4">Searching…</div>}
+      {error && <div className="mt-4 text-rose-400">{error}</div>}
+
+      {results && (
+        <>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+            <div>Page {page + 1} · {useFts ? 'FTS enabled' : 'Standard search'}</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => doSearch(Math.max(page - 1, 0))}
+                disabled={page === 0}
+                className="rounded border border-slate-700 bg-slate-950 px-3 py-2 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => doSearch(page + 1)}
+                disabled={!canGoNext()}
+                className="rounded border border-slate-700 bg-slate-950 px-3 py-2 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <div>
+              <h3 className="font-semibold">Destinations</h3>
+              <ul className="mt-2 space-y-2">
+                {results.destinations.map((d: any) => (
+                  <li key={d.id} className="rounded border border-slate-800 bg-slate-900 p-3 text-slate-200">
+                    <div className="text-sm text-slate-400">{d.category || 'General'}</div>
+                    <div className="font-semibold">{d.name}</div>
+                    <div className="text-sm">{d.location}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold">Trip Plans</h3>
+              <ul className="mt-2 space-y-2">
+                {results.trip_plans.map((t: any) => (
+                  <li key={t.id} className="rounded border border-slate-800 bg-slate-900 p-3 text-slate-200">
+                    <div className="font-semibold">{t.name}</div>
+                    <div className="text-sm">{t.destination} · {t.days} day(s)</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold">Bookings</h3>
+              <ul className="mt-2 space-y-2">
+                {results.bookings.map((b: any) => (
+                  <li key={b.id} className="rounded border border-slate-800 bg-slate-900 p-3 text-slate-200">
+                    <div className="font-semibold">{b.title}</div>
+                    <div className="text-sm">{b.type} · {b.status}</div>
+                    <div className="text-xs text-slate-400">{b.date}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold">Messages</h3>
+              <ul className="mt-2 space-y-2">
+                {results.messages.map((m: any) => (
+                  <li key={m.id} className="rounded border border-slate-800 bg-slate-900 p-3 text-slate-200">
+                    <div className="font-semibold">{m.from_user || m.from}</div>
+                    <div className="text-sm truncate">{m.content}</div>
+                    <div className="text-xs text-slate-400">{new Date(m.created_at).toLocaleString()}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold">Users</h3>
+              <ul className="mt-2 space-y-2">
+                {results.users.map((u: any) => (
+                  <li key={u.id} className="rounded border border-slate-800 bg-slate-900 p-3 text-slate-200">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold">{u.name}</div>
+                        <div className="text-sm">{u.email}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openChatWithUser(u.email)}
+                        className="rounded bg-cyan-400 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300"
+                      >
+                        Chat
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+export default SearchPage;
