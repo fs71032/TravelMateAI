@@ -142,3 +142,147 @@ function TripPlannerPage() {
         days: days === '' ? 0 : clampDays(days),
         style,
         budget,
+        customPrompt,
+        plannedDate: plannedDate || undefined,
+        items: itineraryItems,
+        source: source ?? undefined
+      });
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [destination, days, style, budget, customPrompt, plannedDate, itineraryItems, hasGenerated, source]);
+
+  const tripHeadline = useMemo(() => {
+    const place = destination.trim() || 'your destination';
+    const dayPart = days === '' ? 'Your trip' : `${days}-day trip`;
+    const stylePart = style.trim() ? ` · ${style}` : '';
+    return `${dayPart}${stylePart} to ${place}`;
+  }, [destination, days, style]);
+
+  const buildRequest = (regenerate: boolean): ItineraryRequest | null => {
+    if (!destination.trim()) {
+      setError(regenerate ? 'Enter a destination first.' : 'Enter a destination, then click Create itinerary.');
+      return null;
+    }
+
+    const resolvedDays = days === '' ? 3 : clampDays(days);
+    const resolvedStyle = style.trim() || 'Balanced';
+
+    if (resolvedDays < 1 || resolvedDays > 7) {
+      setError('Days must be between 1 and 7.');
+      return null;
+    }
+
+    if (days === '') setDays(resolvedDays);
+    if (!style.trim()) setStyle(resolvedStyle);
+
+    return {
+      destination: destination.trim(),
+      days: resolvedDays,
+      style: resolvedStyle,
+      budget: budget.trim() || undefined,
+      customPrompt: customPrompt.trim() || undefined,
+      seed: Date.now(),
+      regenerate,
+      planId: regenerate ? activePlanId || undefined : undefined,
+      planName: planName.trim() || defaultTripName(destination, plannedDate),
+      plannedDate: plannedDate.trim() || undefined,
+      userEmail,
+      saveToDatabase: true
+    };
+  };
+
+  const runGeneration = async (regenerate: boolean) => {
+    const usedDefaults = days === '' || !style.trim();
+    const request = buildRequest(regenerate);
+    if (!request) return;
+
+    setIsGenerating(true);
+    setError('');
+    setNotice('');
+    setSaveMessage('');
+    setSource(null);
+
+    try {
+      const result = await generateItinerary(request);
+      setItineraryItems(normalizeItineraryItems(result.items));
+      setHasGenerated(true);
+      setSource(result.source ?? null);
+
+      const successNote = regenerate
+        ? 'Updated this trip with a new plan version.'
+        : usedDefaults
+          ? 'Used 3 days and Balanced style — adjust fields and create again to customize.'
+          : 'New trip saved to your list.';
+
+      const noticeParts = [successNote];
+
+      if (result.savedPlan) {
+        selectPlan(result.savedPlan.id);
+        setPlanName(result.savedPlan.name);
+        setSavedPlans(await fetchSavedPlans(userEmail));
+        noticeParts.push('Saved to database.');
+        if (result.usedFallback) {
+          noticeParts.push('Planner ran in the browser; backend is connected for saving.');
+        }
+      } else if (result.usedFallback && result.message) {
+        noticeParts.push(result.message);
+      } else if (!regenerate && result.message && result.source === 'template') {
+        noticeParts.push(result.message);
+      }
+
+      setNotice(noticeParts.filter(Boolean).join(' '));
+
+      if (!planName.trim() && !result.savedPlan) {
+        setPlanName(defaultTripName(destination, plannedDate));
+      }
+    } catch (err) {
+      setError((err as Error).message || 'Could not generate itinerary.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerate = () => runGeneration(false);
+
+  const handleSavePlan = async () => {
+    if (!destination.trim()) {
+      setError('Enter a destination before saving.');
+      return;
+    }
+    if (!hasGenerated || itineraryItems.length === 0) {
+      setError('Create a plan before saving.');
+      return;
+    }
+
+    if (days === '' || !style.trim()) {
+      setError('Enter days and travel style before saving.');
+      return;
+    }
+
+    const name = planName.trim() || defaultTripName(destination, plannedDate);
+    const plan = await persistPlan({
+      id: activePlanId || undefined,
+      name,
+      destination: destination.trim(),
+      days: clampDays(days as number),
+      style: style.trim(),
+      budget,
+      customPrompt,
+      plannedDate: plannedDate.trim() || undefined,
+      items: itineraryItems,
+      source: source ?? undefined,
+      userEmail
+    });
+
+    selectPlan(plan.id);
+    setPlanName(plan.name);
+    setSaveMessage('Trip saved.');
+    setSavedPlans(await fetchSavedPlans(userEmail));
+  };
+
+  const handleLoadPlan = (id: string) => {
+    const plan = savedPlans.find((p) => p.id === id);
+    if (!plan) return;
+    applyPlan(plan);
+    setSaveMessage(`Loaded "${plan.name}".`);
