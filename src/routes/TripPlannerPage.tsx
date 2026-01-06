@@ -429,3 +429,146 @@ function TripPlannerPage() {
                   </select>
                 </label>
               </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-sm text-slate-300">Planned date (optional)</span>
+                  <input
+                    type="date"
+                    value={plannedDate}
+                    onChange={(e) => setPlannedDate(e.target.value)}
+                    className="mt-3 w-full rounded-3xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none focus:border-cyan-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-slate-300">Budget</span>
+                  <input
+                    type="text"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    placeholder="e.g. €1,200"
+                    className="mt-3 w-full rounded-3xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none focus:border-cyan-400"
+                  />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-sm text-slate-300">Special requests (optional)</span>
+                  <textarea
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    rows={3}
+                    placeholder="e.g. vegetarian food, kid-friendly, avoid long hikes"
+                    className="mt-3 w-full resize-y rounded-3xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none focus:border-cyan-400"
+                  />
+                </label>
+              </div>
+            </form>
+
+            {hasGenerated && itineraryItems.length > 0 && (
+              <div className="mt-8 space-y-4 border-t border-slate-800 pt-8">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-lg font-semibold text-white">Itinerary preview</h3>
+                  <button
+                    type="button"
+                    onClick={() => runGeneration(true)}
+                    disabled={isGenerating}
+                    className="rounded-full border border-slate-600 px-4 py-2 text-xs text-slate-200 transition hover:border-cyan-400 disabled:opacity-60"
+                  >
+                    {isGenerating ? 'Regenerating…' : 'Try another plan'}
+                  </button>
+                </div>
+                <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
+                  {itineraryItems.map((item) => (
+                    <div key={item.id || `day-${item.day}`} className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+                      <p className="text-xs uppercase tracking-wider text-cyan-400/80">Day {item.day}</p>
+                      <p className="mt-1 font-semibold text-white">{item.title || `Day ${item.day}`}</p>
+                      <p className="mt-2 whitespace-pre-line text-sm text-slate-400">{item.details || '—'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <aside className="space-y-6">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 shadow-soft">
+            <h2 className="text-lg font-semibold text-white">Save trip</h2>
+            <label className="mt-4 block">
+              <span className="text-sm text-slate-400">Trip name</span>
+              <input
+                type="text"
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+                placeholder="My trip name"
+                className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-2.5 text-slate-100 outline-none focus:border-cyan-400"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleSavePlan}
+              disabled={!hasGenerated}
+              className="mt-4 w-full rounded-3xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Save to my trips
+            </button>
+          </div>
+
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 shadow-soft">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-lg font-semibold text-white">Saved trips</h2>
+              {userEmail && (
+                <button
+                  type="button"
+                  onClick={handleNewTrip}
+                  className="shrink-0 rounded-full border border-cyan-500/40 px-3 py-1 text-xs font-medium text-cyan-200 hover:bg-cyan-500/10"
+                >
+                  + Add another
+                </button>
+              )}
+            </div>
+            {!userEmail ? (
+              <p className="mt-3 text-sm text-slate-500">Sign in to see trips saved to your account.</p>
+            ) : savedPlans.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">No saved trips yet. Create a plan while signed in.</p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {savedPlans.map((plan) => (
+                  <li
+                    key={plan.id}
+                    className={`rounded-2xl border p-4 ${
+                      activePlanId === plan.id ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-800 bg-slate-950/50'
+                    }`}
+                  >
+                    <p className="font-medium text-slate-100">{plan.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {plan.destination} · {plan.days || plan.items.length} days
+                      {plan.plannedDate ? ` · ${formatPlannedDate(plan.plannedDate)}` : ''}
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleLoadPlan(plan.id)}
+                        className="rounded-full border border-slate-700 px-3 py-1 text-xs text-cyan-300 hover:border-cyan-500/50"
+                      >
+                        Load
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePlan(plan.id)}
+                        className="rounded-full border border-slate-700 px-3 py-1 text-xs text-rose-300 hover:border-rose-500/50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+export default TripPlannerPage;
