@@ -126,4 +126,133 @@ const PROFILES = [
         },
         {
           title: 'Markets & local life',
-          details:
+          details:
+            '08:00 — Pazari i Ri (New Bazaar) for fresh produce & raki tasting.\n' +
+            '10:30 — House of Leaves (surveillance museum).\n' +
+            '13:00 — Lunch at Valbone (byrek & qofte).\n' +
+            '15:00 — Grand Park (Parku i Madh) lake walk.\n' +
+            '19:00 — Farewell at Pireu Fish Restaurant (fresh seafood).'
+        }
+      ],
+      Food: [
+        {
+          title: 'Tirana tasting day',
+          details:
+            '09:00 — Byrek at traditional bakery near Avni Rustemi square.\n' +
+            '11:00 — Kafe at Mon Chéri.\n' +
+            '13:00 — Tavë kosi & fërgesë at Oda.\n' +
+            '16:00 — Craft beer at Birra Stela.\n' +
+            '20:00 — Fine dining: Mullixhiu tasting menu.'
+        }
+      ],
+      Culture: [
+        {
+          title: 'Communist heritage',
+          details:
+            '10:00 — Bunk\'Art 1 (mountain bunker — allow 2h, taxi recommended).\n' +
+            '14:00 — Lunch in city.\n' +
+            '16:00 — House of Leaves + National Gallery of Arts.\n' +
+            '19:00 — Folklore evening (check Teatri Kombëtar schedule).'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['pristina', 'prishtina', 'pristina kosovo', 'prishtine'],
+    label: 'Pristina, Kosovo',
+    transportTip: 'City center fits in one day on foot; taxis are inexpensive for Germia Park.',
+    plans: {
+      Balanced: [
+        {
+          title: 'NEWBORN & city landmarks',
+          details:
+            '09:30 — Coffee at Halfnote Jazz Club café.\n' +
+            '10:00 — NEWBORN monument, Mother Teresa Boulevard walk.\n' +
+            '11:30 — Imperial Mosque & Clock Tower (Sahat Kulla).\n' +
+            '13:00 — Lunch: Home Restaurant (modern Balkan).\n' +
+            '15:00 — Kosovo Museum + Ethnological Museum (both central).\n' +
+            '17:00 — National Library (Brutalist architecture photo stop).\n' +
+            '20:00 — Dinner: Pishat (traditional Kosovo grill).'
+        },
+        {
+          title: 'Germia Park & cafés',
+          details:
+            '09:00 — Breakfast at Soma Book Station.\n' +
+            '11:00 — Germia Park hike or picnic (15 min taxi).\n' +
+            '14:00 — Lunch at Te Komit — City Center.\n' +
+            '16:00 — Café crawl in Dardania district.\n' +
+            '19:30 — Sunset at Bear Sanctuary viewing point (if day trip) or Prishtina Mall terrace.'
+        }
+      ],
+      Food: [
+        {
+          title: 'Kosovo flavors',
+          details:
+            '10:00 — Burek at a local furna (traditional bakery).\n' +
+            '13:00 — Flia experience (weekends) or qebapa at Pishat.\n' +
+            '16:00 — Macchiato culture at Liburnia.\n' +
+            '20:00 — Dinner: Baboon Hookah Lounge restaurant or Tiffany.'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['saranda', 'sarande', 'saranda albania'],
+    label: 'Saranda, Albania',
+    transportTip: 'Rent a car or book tours for Ksamil/Butrint; town center is walkable.',
+    plans: {
+      Balanced: [
+        {
+          title: 'Waterfront & Lëkurësi Castle',
+          details:
+            '09:00 — Breakfast at Lekuresi Castle restaurant (views over Saranda Bay).\n' +
+            '11:00 — Saranda promenade & Synagogue ruins (5th century).\n' +
+            '13:00 — Seafood lunch at Mare Nostrum Cuisine.\n' +
+            '15:00 — Mirror Beach or Monastery Beach (taxi 15 min).\n' +
+            '19:00 — Sunset aperitivo on the promenade.'
+        },
+        {
+          title: 'Butrint UNESCO day',
+          details:
+            '08:30 — Drive/tour to Butrint National Park (45 min) — Roman theatre, baptistery.\n' +
+            '13:00 — Lunch in Ksamil village.\n' +
+            '15:00 — Ksamil Islands swim (boat €5–10).\n' +
+            '19:00 — Return to Saranda; dinner at Taverna Labëria.'
+        }
+      ],
+      Relax: [
+        {
+          title: 'Coastal slow day',
+          details:
+            '10:00 — Paddboard or kayak from Saranda beach operators.\n' +
+            '13:00 — Long lunch at Javeri.\n' +
+            '16:00 — Siesta & promenade walk.\n' +
+            '18:00 — Sunset at Lëkurësi Castle.'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['reykjavik', 'reykjavik iceland', 'iceland'],
+    label: 'Reykjavík, Iceland',
+    transportTip: 'Walk downtown; book day tours for Golden Circle or South Coast.',
+    plans: {
+      Balanced: [
+        {
+          title: 'Downtown & Harpa',
+          details:
+            '09:00 — Brunch at Bergsson Mathús.\n' +
+            '10:30 — Hallgrímskirkja tower (book time slot).\n' +
+            '12:00 — Laugavegur shopping street walk.\n' +
+            '13:30 — Lunch at Icelandic Street Food (fish stew).\n' +
+            '15:00 — Harpa Concert Hall architecture tour.\n' +
+            '17:00 — Sun Voyager sculpture & waterfront.\n' +
+            '20:00 — Northern lights tour (winter) or midnight sun walk (summer).'
+        },
+        {
+          title: 'Golden Circle tour',
+          details:
+            '08:00 — Golden Circle day tour: Þingvellir National Park, Geysir, Gullfoss waterfall.\n' +
+            '13:00 — Lunch stop at Friðheimar tomato greenhouse restaurant.\n' +
+            '18:00 — Return Reykjavík; relax at Sky Lagoon or local hot pools.'
+        }
