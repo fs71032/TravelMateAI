@@ -255,4 +255,133 @@ const PROFILES = [
             '08:00 — Golden Circle day tour: Þingvellir National Park, Geysir, Gullfoss waterfall.\n' +
             '13:00 — Lunch stop at Friðheimar tomato greenhouse restaurant.\n' +
             '18:00 — Return Reykjavík; relax at Sky Lagoon or local hot pools.'
-        }
+        }
+      ],
+      Adventure: [
+        {
+          title: 'Glacier or volcano day',
+          details:
+            'Full-day tour: Sólheimajökull glacier hike OR Katla ice cave (seasonal).\n' +
+            'Pack waterproof layers; tour includes safety gear.\n' +
+            'Evening: warm up at Blue Lagoon (book timed entry).'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['amalfi', 'amalfi coast', 'positano', 'sorrento'],
+    label: 'Amalfi Coast, Italy',
+    transportTip: 'SITA bus or ferry between towns; avoid driving in peak summer.',
+    plans: {
+      Balanced: [
+        {
+          title: 'Positano & Path of Gods',
+          details:
+            '08:30 — Ferry Sorrento → Positano.\n' +
+            '10:00 — Positano beach & church of Santa Maria Assunta.\n' +
+            '13:00 — Lunch: Chez Black or Da Adolfo (beach club).\n' +
+            '15:30 — Path of the Gods hike (Bomerano to Nocelle) — 3h moderate.\n' +
+            '19:00 — Aperitivo in Praiano.'
+        },
+        {
+          title: 'Amalfi & Ravello',
+          details:
+            '09:00 — Amalfi Cathedral & paper museum.\n' +
+            '12:00 — Lemon gelato at Andrea Pansa (Amalfi).\n' +
+            '14:00 — Bus to Ravello: Villa Rufolo & Villa Cimbrone gardens.\n' +
+            '19:00 — Dinner with view: Rossellinis (Ravello) or Lo Scoglio (Cetara).'
+        }
+      ],
+      Relax: [
+        {
+          title: 'Coastal slow day',
+          details:
+            'Morning at Fornillo beach (Positano).\n' +
+            'Afternoon spa at Monastero Santa Rosa.\n' +
+            'Sunset boat aperitivo from Amalfi port.'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['tokyo', 'tokyo japan'],
+    label: 'Tokyo, Japan',
+    transportTip: 'Suica/PASMO IC card for metro; start early for Tsukiji/Toyosu.',
+    plans: {
+      Balanced: [
+        {
+          title: 'Asakusa & Skytree',
+          details:
+            '08:00 — Senso-ji Temple (Asakusa) before crowds.\n' +
+            '10:00 — Nakamise shopping street snacks.\n' +
+            '12:00 — Lunch: Tempura Daikokuya (Asakusa).\n' +
+            '14:00 — Tokyo Skytree observation deck.\n' +
+            '17:00 — Sumida river walk.\n' +
+            '19:00 — Dinner in Ryogoku (chanko nabe wrestling district).'
+        },
+        {
+          title: 'Shibuya & Harajuku',
+          details:
+            '09:00 — Meiji Shrine forest walk.\n' +
+            '11:00 — Harajuku Takeshita Street & crepes.\n' +
+            '13:00 — Lunch: Afuri ramen (Harajuku).\n' +
+            '15:00 — Shibuya Crossing & Hachiko statue.\n' +
+            '17:00 — Shibuya Sky observation.\n' +
+            '20:00 — Izakaya dinner in Omoide Yokocho (Shinjuku).'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['paris', 'paris france'],
+    label: 'Paris, France',
+    transportTip: 'Navigo Easy or single t+ tickets for metro; book Louvre/Eiffel slots online.',
+    plans: {
+      Balanced: [
+        {
+          title: 'Île de la Cité & Latin Quarter',
+          details:
+            '09:00 — Café crème at Café de Flore (Saint-Germain).\n' +
+            '10:00 — Notre-Dame exterior & Sainte-Chapelle (timed ticket).\n' +
+            '12:30 — Lunch: Le Bouillon Chartier (Grands Boulevards) or Latin Quarter crêpes.\n' +
+            '14:30 — Luxembourg Gardens walk.\n' +
+            '16:30 — Panthéon or Cluny Museum (Medieval Paris).\n' +
+            '19:30 — Seine stroll & dinner in Saint-Germain: Les Deux Magots area.'
+        },
+        {
+          title: 'Eiffel & Trocadéro',
+          details:
+            '09:00 — Eiffel Tower summit (pre-booked slot).\n' +
+            '11:30 — Trocadéro photos & Café du Trocadéro.\n' +
+            '13:00 — Lunch near Champ de Mars.\n' +
+            '15:00 — Musée du quai Branly or Army Museum (Les Invalides).\n' +
+            '17:30 — Batobus Seine cruise from Eiffel.\n' +
+            '20:00 — Dinner: Le Jules Verne (splurge) or Le Relais de l\'Entrecôte.'
+        },
+        {
+          title: 'Montmartre & Marais',
+          details:
+            '08:30 — Sacré-Cœur before crowds; Place du Tertre artists.\n' +
+            '11:00 — Marché des Enfants Rouges (oldest covered market).\n' +
+            '13:00 — Lunch in Le Marais (L\'As du Fallafel if open).\n' +
+            '15:00 — Centre Pompidou or Picasso Museum.\n' +
+            '19:00 — Sunset at Pont des Arts; dinner in Oberkampf.'
+        }
+      ],
+      Food: [
+        {
+          title: 'Patisserie & markets',
+          details:
+            '08:00 — Croissants at Du Pain et des Idées.\n' +
+            '10:00 — Rue Cler market tasting walk.\n' +
+            '13:00 — Bistro lunch: Chez L\'Ami Jean.\n' +
+            '16:00 — Fromagerie & wine at La Grande Épicerie.\n' +
+            '20:00 — Classic French: Le Comptoir du Relais.'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['rome', 'roma', 'rome italy'],
+    label: 'Rome, Italy',
+    transportTip: 'Walk the centro storico; use Roma 24/48/72h pass for metro to Vatican.',
