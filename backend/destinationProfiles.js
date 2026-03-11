@@ -384,4 +384,130 @@ const PROFILES = [
   {
     keys: ['rome', 'roma', 'rome italy'],
     label: 'Rome, Italy',
-    transportTip: 'Walk the centro storico; use Roma 24/48/72h pass for metro to Vatican.',
+    transportTip: 'Walk the centro storico; use Roma 24/48/72h pass for metro to Vatican.',
+    plans: {
+      Balanced: [
+        {
+          title: 'Colosseum & Roman Forum',
+          details:
+            '08:30 — Colosseum (book skip-the-line + underground if available).\n' +
+            '11:00 — Roman Forum & Palatine Hill (same ticket).\n' +
+            '13:00 — Lunch in Monti: La Carbonara or Ai Tre Scalini.\n' +
+            '15:00 — Capitoline Museums or Trevi Fountain + Pantheon.\n' +
+            '18:00 — Aperitivo in Piazza Navona.\n' +
+            '20:30 — Dinner in Trastevere: Da Enzo al 29 (reserve).'
+        },
+        {
+          title: 'Vatican City',
+          details:
+            '08:00 — Vatican Museums early entry (Sistine Chapel).\n' +
+            '11:30 — St. Peter\'s Basilica dome climb.\n' +
+            '13:30 — Lunch near Prati: Pizzarium for gourmet pizza al taglio.\n' +
+            '15:30 — Castel Sant\'Angelo.\n' +
+            '17:30 — Lungotevere walk at sunset.'
+        }
+      ]
+    }
+  },
+  {
+    keys: ['dubrovnik', 'dubrovnik croatia'],
+    label: 'Dubrovnik, Croatia',
+    transportTip: 'Walk the Old Town; take ferry to Lokrum or bus to Cavtat.',
+    plans: {
+      Balanced: [
+        {
+          title: 'Old Town walls',
+          details:
+            '08:00 — City walls walk (go early, 2 km circuit).\n' +
+            '10:30 — Stradun, Rector\'s Palace, Franciscan Monastery.\n' +
+            '13:00 — Seafood at Proto or Nautika (reserve).\n' +
+            '15:00 — Cable car to Mount Srđ panorama.\n' +
+            '19:00 — Buža Bar cliff drinks (enter through wall hole).'
+        },
+        {
+          title: 'Lokrum island',
+          details:
+            '09:00 — Ferry to Lokrum (15 min).\n' +
+            '10:00 — Botanical garden & Fort Royal hike.\n' +
+            '13:00 — Picnic or island restaurant.\n' +
+            '16:00 — Swim at Dead Sea salt lake.\n' +
+            '18:00 — Return; sunset at Banje Beach.'
+        }
+      ]
+    }
+  }
+];
+
+function findProfile(destination) {
+  const key = normalizeDestinationKey(destination);
+  if (!key) return null;
+
+  return (
+    PROFILES.find((profile) =>
+      profile.keys.some((alias) => key.includes(alias) || alias.includes(key))
+    ) || null
+  );
+}
+
+function styleKey(style) {
+  const normalized = String(style || 'Balanced').trim();
+  const match = ['Balanced', 'Adventure', 'Culture', 'Relax', 'Food', 'Family'].find(
+    (preset) => preset.toLowerCase() === normalized.toLowerCase()
+  );
+  return match || 'Balanced';
+}
+
+function pickPlanPool(profile, style) {
+  const stylePlans = profile.plans[styleKey(style)] || profile.plans.Balanced || [];
+  const balanced = profile.plans.Balanced || [];
+  return stylePlans.length ? stylePlans : balanced;
+}
+
+function generateProfileItinerary(request) {
+  const profile = findProfile(request.destination);
+  if (!profile) return null;
+
+  const pool = pickPlanPool(profile, request.style);
+  if (!pool.length) return null;
+
+  const stamp = request.seed || Date.now();
+  const items = Array.from({ length: request.days }, (_, index) => {
+    const dayNumber = index + 1;
+    const plan = pool[(dayNumber - 1 + Math.abs(Math.floor(stamp / 1000))) % pool.length];
+    return {
+      id: `profile-${stamp}-${dayNumber}`,
+      day: dayNumber,
+      title: `Day ${dayNumber}: ${plan.title}`,
+      details: `${plan.details}\n\nTransport: ${profile.transportTip}`
+    };
+  });
+
+  return {
+    profile,
+    items
+  };
+}
+
+function profilePromptHints(destination) {
+  const profile = findProfile(destination);
+  if (!profile) return '';
+
+  const sample = pickPlanPool(profile, 'Balanced')
+    .slice(0, 2)
+    .map((day) => `- ${day.title}: ${day.details.split('\n')[0]}`)
+    .join('\n');
+
+  return [
+    `Reference destination: ${profile.label}.`,
+    profile.transportTip ? `Local transport: ${profile.transportTip}` : '',
+    sample ? `Example real venues in this area:\n${sample}` : ''
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+module.exports = {
+  findProfile,
+  generateProfileItinerary,
+  profilePromptHints
+};
