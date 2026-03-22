@@ -130,3 +130,133 @@ function normalizeItineraryItems(items) {
     ...item,
     day: item.day ?? index + 1,
     title: item.title ?? '',
+    details: item.details ?? ''
+  }));
+}
+
+function itemsHaveRealContent(items) {
+  return items.some((item) => {
+    const text = `${item.title || ''} ${item.details || ''}`;
+    return text.trim().length > 80;
+  });
+}
+
+function resolveLiveSource(places, provider, withOpenAi = false) {
+  if (withOpenAi) {
+    if (provider.includes('Google')) return 'live+openai';
+    return 'osm+openai';
+  }
+  if (provider.includes('Google') && provider.includes('OpenStreetMap')) return 'live';
+  if (provider.includes('Google')) return 'google';
+  return 'osm';
+}
+
+async function loadPlacesContext(request) {
+  if (!isLivePlacesEnabled() || !request.destination) {
+    return { places: [], placesContext: '', provider: '' };
+  }
+
+  try {
+    const { places, provider } = await fetchDestinationPlaces(request);
+    return {
+      places,
+      provider,
+      placesContext: formatPlacesForPrompt(places, provider)
+    };
+  } catch (error) {
+    console.error('[itinerary] Live places failed:', error.message);
+    return { places: [], placesContext: '', provider: '' };
+  }
+}
+
+function buildLivePlacesResult(request, prompt, places, provider) {
+  const items = normalizeItineraryItems(buildItineraryFromPlaces(request, places));
+  if (!itemsHaveRealContent(items)) {
+    return null;
+  }
+
+  const source = resolveLiveSource(places, provider, false);
+  return {
+    prompt,
+    items,
+    source,
+    aiEnabled: isOpenAiConfigured(),
+    livePlacesEnabled: true,
+    googlePlacesEnabled: isGooglePlacesConfigured(),
+    openStreetMapEnabled: isOpenStreetMapEnabled(),
+    message: `Itinerary built from ${places.length} real places (${provider}) for ${request.destination}.`
+  };
+}
+
+async function generateItinerary(params) {
+  const request = normalizeRequest(params);
+  const { places, placesContext, provider } = await loadPlacesContext(request);
+  const { contextBlock } = resolveDestinationContext(request.destination);
+  const profileHints = profilePromptHints(request.destination);
+  const prompt = buildItineraryPrompt({ ...request, placesContext });
+  const aiContext = [contextBlock, profileHints, placesContext].filter(Boolean).join('\n\n');
+
+  if (isOpenAiConfigured()) {
+    try {
+      const items = normalizeItineraryItems(
+        await generateWithOpenAI(prompt, request.days, request.seed, aiContext)
+      );
+      if (!itemsHaveRealContent(items)) {
+        throw new Error('AI returned insufficient detail');
+      }
+      return {
+        prompt,
+        items,
+        source: places.length ? resolveLiveSource(places, provider, true) : 'openai',
+        aiEnabled: true,
+        livePlacesEnabled: places.length > 0,
+        googlePlacesEnabled: isGooglePlacesConfigured(),
+        openStreetMapEnabled: isOpenStreetMapEnabled(),
+        message: places.length
+          ? `Plan generated with OpenAI using ${places.length} live places (${provider}).`
+          : undefined
+      };
+    } catch (error) {
+      console.error('[itinerary] OpenAI failed:', error.message);
+      const liveResult = buildLivePlacesResult(request, prompt, places, provider);
+      if (liveResult) {
+        liveResult.message = `OpenAI unavailable — built from live map data (${places.length} places).`;
+        return liveResult;
+      }
+    }
+  }
+
+  const liveResult = buildLivePlacesResult(request, prompt, places, provider);
+  if (liveResult) {
+    return liveResult;
+  }
+
+  const fallback = generateTemplateItinerary(request);
+  const usedProfile = Boolean(fallback.profileLabel);
+  return {
+    ...fallback,
+    items: normalizeItineraryItems(fallback.items),
+    source: 'template',
+    aiEnabled: isOpenAiConfigured(),
+    livePlacesEnabled: isLivePlacesEnabled(),
+    googlePlacesEnabled: isGooglePlacesConfigured(),
+    openStreetMapEnabled: isOpenStreetMapEnabled(),
+    message: usedProfile
+      ? `Curated plan for ${fallback.profileLabel}. Live map lookup found no venues — try a larger city name.`
+      : 'Live map lookup found no venues for this destination — used built-in planner.'
+  };
+}
+
+function isAiConfigured() {
+  return isOpenAiConfigured();
+}
+
+module.exports = {
+  buildItineraryPrompt,
+  generateItinerary,
+  generateTemplateItinerary,
+  isAiConfigured,
+  isGooglePlacesConfigured,
+  isLivePlacesEnabled,
+  isOpenStreetMapEnabled
+};
