@@ -1,0 +1,23 @@
+[
+  {
+    "id": "user-1",
+    "name": "TravelMate User",
+    "email": "admin@travelmate.ai",
+    "password": "$2b$08$WNemDMzJHIJLJRfTrTZaSewSsLfhd7SO8kIfjerofp/gbf3RTBCdO",
+    "role": "admin"
+  },
+  {
+    "id": "user-2",
+    "name": "Florida",
+    "email": "florida@travelmate.ai",
+    "password": "$2b$08$iHZkyIRxg13f0bq7tSnjCu6p0IzhTX6sbPePTZJq2xvurHxcZM/TW",
+    "role": "user"
+  },
+  {
+    "id": "user-3",
+    "name": "Kaltrina",
+    "email": "kaltrina@travelmate.ai",
+    "password": "$2b$08$nNBoNxdsg8zjFPuaVjx1neGFBRxfqRR/jBQdIfcrHWzyWcRUIXFR.",
+    "role": "user"
+  }
+]
