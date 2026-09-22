@@ -1,4 +1,5 @@
 import { resolveApiUrl } from '../config/apiBase';
+import { authFetch as authenticatedFetch } from './api';
 
 export type LoginPayload = {
   email: string;
@@ -38,7 +39,7 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
   }
 }
 
-async function authFetch(path: string, init: RequestInit): Promise<Response> {
+async function publicAuthFetch(path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(resolveApiUrl(path), init);
   } catch {
@@ -49,7 +50,7 @@ async function authFetch(path: string, init: RequestInit): Promise<Response> {
 }
 
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
-  const response = await authFetch('/api/auth/login', {
+  const response = await publicAuthFetch('/api/auth/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -67,7 +68,7 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthResponse> {
-  const response = await authFetch('/api/auth/register', {
+  const response = await publicAuthFetch('/api/auth/register', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -91,17 +92,27 @@ export type UpdateProfilePayload = {
 };
 
 export async function updateProfile(payload: UpdateProfilePayload): Promise<AuthResponse> {
-  const response = await authFetch('/api/auth/update', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  let response: Response;
+  try {
+    response = await authenticatedFetch('/api/auth/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    throw new Error(
+      'Cannot reach the auth API. Start the backend in a separate terminal: cd backend && npm install && npm start. Then run the frontend with npm run dev from the project root.'
+    );
+  }
 
   const data = await parseJsonResponse<any>(response);
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Your session expired. Please sign in again.');
+    }
     throw new Error(data?.message || 'Failed to update profile.');
   }
 
