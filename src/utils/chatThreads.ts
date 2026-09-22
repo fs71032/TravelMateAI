@@ -37,3 +37,20 @@ export function appendChatMessage(list: ChatMessageRecord[], message: ChatMessag
     (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
   );
 }
+
+export function filterThreadMessages(
+  messages: ChatMessageRecord[],
+  currentEmail: string,
+  partnerEmail: string
+): ChatMessageRecord[] {
+  const self = normalizeChatEmail(currentEmail);
+  const partner = normalizeChatEmail(partnerEmail);
+  if (!self || !partner) return [];
+
+  return messages.filter(
+    (message) =>
+      message.room === 'private' &&
+      ((normalizeChatEmail(message.from) === self && normalizeChatEmail(message.to) === partner) ||
+        (normalizeChatEmail(message.from) === partner && normalizeChatEmail(message.to) === self))
+  );
+}
