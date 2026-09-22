@@ -19,8 +19,11 @@ export function resolveApiUrl(path: string): string {
 }
 
 export function getSocketUrl(): string {
-  if (import.meta.env.DEV && typeof window !== 'undefined') {
-    return DEFAULT_BACKEND_URL;
+  if (API_BASE_URL) {
+    return API_BASE_URL;
   }
-  return API_BASE_URL || DEFAULT_BACKEND_URL;
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return DEFAULT_BACKEND_URL;
 }
