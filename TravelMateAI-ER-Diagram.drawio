@@ -284,3 +284,145 @@
           <mxGeometry x="30" width="190" height="21" as="geometry" />
         </mxCell>
         <mxCell id="refresh_tokens_r4" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="refresh_tokens" vertex="1">
+          <mxGeometry y="114" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="refresh_tokens_r4_k" value="" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="refresh_tokens_r4" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="refresh_tokens_r4_n" value="revoked_at" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="refresh_tokens_r4" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="refresh_tokens_r5" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="refresh_tokens" vertex="1">
+          <mxGeometry y="135" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="refresh_tokens_r5_k" value="∗" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="refresh_tokens_r5" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="refresh_tokens_r5_n" value="audit: created_by, updated_by, created_at, updated_at" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontStyle=2;fontSize=9;fontColor=#64748b;" parent="refresh_tokens_r5" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings" value="07. settings" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;columnLines=1;fontStyle=1;align=center;resizeLast=1;html=1;fillColor=#4a86c7;strokeColor=#1c4587;fontColor=#ffffff;rounded=1;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="560" y="310" width="220" height="162" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r0" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="settings" vertex="1">
+          <mxGeometry y="30" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r0_k" value="PK" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="settings_r0" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r0_n" value="id" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontStyle=4;" parent="settings_r0" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r1" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="settings" vertex="1">
+          <mxGeometry y="51" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r1_k" value="FK" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="settings_r1" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r1_n" value="user_id → users" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="settings_r1" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r2" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="settings" vertex="1">
+          <mxGeometry y="72" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r2_k" value="" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="settings_r2" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r2_n" value="key" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="settings_r2" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r3" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="settings" vertex="1">
+          <mxGeometry y="93" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r3_k" value="" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="settings_r3" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r3_n" value="value" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="settings_r3" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r4" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="settings" vertex="1">
+          <mxGeometry y="114" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r4_k" value="" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="settings_r4" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r4_n" value="description" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="settings_r4" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r5" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="settings" vertex="1">
+          <mxGeometry y="135" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r5_k" value="∗" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="settings_r5" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="settings_r5_n" value="audit: created_by, updated_by, created_at, updated_at" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontStyle=2;fontSize=9;fontColor=#64748b;" parent="settings_r5" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications" value="08. notifications" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;columnLines=1;fontStyle=1;align=center;resizeLast=1;html=1;fillColor=#4a86c7;strokeColor=#1c4587;fontColor=#ffffff;rounded=1;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="560" y="470" width="220" height="162" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r0" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="notifications" vertex="1">
+          <mxGeometry y="30" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r0_k" value="PK" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="notifications_r0" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r0_n" value="id" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontStyle=4;" parent="notifications_r0" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r1" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="notifications" vertex="1">
+          <mxGeometry y="51" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r1_k" value="FK" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="notifications_r1" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r1_n" value="user_id → users" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="notifications_r1" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r2" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="notifications" vertex="1">
+          <mxGeometry y="72" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r2_k" value="" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="notifications_r2" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r2_n" value="type" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="notifications_r2" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r3" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="notifications" vertex="1">
+          <mxGeometry y="93" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r3_k" value="" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="notifications_r3" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r3_n" value="title" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="notifications_r3" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r4" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="notifications" vertex="1">
+          <mxGeometry y="114" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r4_k" value="" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="notifications_r4" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r4_n" value="is_read" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontSize=10;" parent="notifications_r4" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r5" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="notifications" vertex="1">
+          <mxGeometry y="135" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r5_k" value="∗" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="notifications_r5" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications_r5_n" value="audit: created_by, updated_by, created_at, updated_at" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontStyle=2;fontSize=9;fontColor=#64748b;" parent="notifications_r5" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_logs" value="09. audit_logs" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;columnLines=1;fontStyle=1;align=center;resizeLast=1;html=1;fillColor=#4a86c7;strokeColor=#1c4587;fontColor=#ffffff;rounded=1;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="560" y="630" width="220" height="183" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_logs_r0" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=#ffffff;collapsible=0;strokeColor=#1c4587;" parent="audit_logs" vertex="1">
+          <mxGeometry y="30" width="220" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_logs_r0_k" value="PK" style="shape=partialRectangle;connectable=0;fillColor=none;align=center;fontStyle=1;fontSize=9;strokeColor=#1c4587;" parent="audit_logs_r0" vertex="1">
+          <mxGeometry width="30" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_logs_r0_n" value="id" style="shape=partialRectangle;connectable=0;fillColor=none;align=left;spacingLeft=6;strokeColor=#1c4587;fontStyle=4;" parent="audit_logs_r0" vertex="1">
+          <mxGeometry x="30" width="190" height="21" as="geometry" />
