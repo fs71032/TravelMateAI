@@ -17,3 +17,23 @@ export type ChatConversation = {
 export function normalizeChatEmail(value?: string | null): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
+
+export function appendChatMessage(list: ChatMessageRecord[], message: ChatMessageRecord): ChatMessageRecord[] {
+  if (list.some((entry) => entry.id === message.id)) {
+    return list;
+  }
+
+  const withoutPendingDuplicate = list.filter((entry) => {
+    if (!entry.id.startsWith('pending-')) return true;
+    return !(
+      entry.content === message.content &&
+      normalizeChatEmail(entry.from) === normalizeChatEmail(message.from) &&
+      normalizeChatEmail(entry.to) === normalizeChatEmail(message.to) &&
+      entry.room === message.room
+    );
+  });
+
+  return [...withoutPendingDuplicate, message].sort(
+    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+  );
+}
