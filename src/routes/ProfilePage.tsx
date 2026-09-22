@@ -4,7 +4,7 @@ import { updateProfile } from '../services/authService';
 import { useAuth } from '../auth/AuthContext';
 
 function ProfilePage() {
-  const { user, signOut, updateUser } = useAuth();
+  const { user, signIn, signOut } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState(user?.user.name || '');
   const [password, setPassword] = useState('');
@@ -27,13 +27,17 @@ function ProfilePage() {
     setStatus({ message: '', error: '' });
 
     try {
-      const auth = await updateProfile({
+      const updated = await updateProfile({
         email: user.user.email,
         name: name.trim(),
         password: password.trim() || undefined
       });
 
-      updateUser(auth.user);
+      signIn({
+        accessToken: updated.accessToken,
+        refreshToken: updated.refreshToken || user.refreshToken,
+        user: updated.user
+      });
       setStatus({ message: 'Profile updated successfully.', error: '' });
       setPassword('');
     } catch (error) {
