@@ -1,6 +1,30 @@
 import { resolveApiUrl } from '../config/apiBase';
 
 const AUTH_STORAGE_KEY = 'travelmate_auth';
+export const AUTH_UPDATED_EVENT = 'travelmate-auth-updated';
+
+function notifyAuthUpdated() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(AUTH_UPDATED_EVENT));
+  }
+}
+
+function isAccessTokenExpired(token: string, skewMs = 30_000): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1])) as { exp?: number };
+    if (!payload.exp) return false;
+    return Date.now() >= payload.exp * 1000 - skewMs;
+  } catch {
+    return true;
+  }
+}
+
+export function getAccessToken(): string | undefined {
+  const stored = getStoredAuthData();
+  return typeof stored?.accessToken === 'string' && stored.accessToken.length > 0
+    ? stored.accessToken
+    : undefined;
+}
 
 function getStoredAuthData(): Record<string, unknown> | null {
   if (typeof window === 'undefined') {
@@ -69,11 +93,28 @@ async function tryRefreshToken(): Promise<boolean> {
       refreshToken: data.refreshToken || refreshToken,
       user: data.user || stored?.user
     });
+    notifyAuthUpdated();
     return true;
   } catch {
     setStoredAuthData(null);
     return false;
   }
+}
+
+/** Returns a valid access token, refreshing from localStorage when expired. */
+export async function ensureFreshAccessToken(): Promise<string | undefined> {
+  let token = getAccessToken();
+  if (token && !isAccessTokenExpired(token)) {
+    return token;
+  }
+
+  const didRefresh = await tryRefreshToken();
+  if (!didRefresh) {
+    return undefined;
+  }
+
+  token = getAccessToken();
+  return token && !isAccessTokenExpired(token) ? token : undefined;
 }
 
 function resolveRequestUrl(input: RequestInfo): RequestInfo {
