@@ -38,6 +38,15 @@ function isOriginAllowed(origin) {
     return true;
   }
 
+  if (
+    isDevelopment &&
+    /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/i.test(
+      origin
+    )
+  ) {
+    return true;
+  }
+
   if (process.env.CORS_ALLOW_FILE === 'true' && (origin === 'null' || origin.startsWith('file://'))) {
     return true;
   }
@@ -145,8 +154,8 @@ io.on('connection', (socket) => {
     }
 
     if (to) {
-      const target = await getOnlineUser(normalizeEmail(to));
-      if (target) io.to(target.socketId).emit('message', msg);
+      const recipientRoom = `user:${normalizeEmail(to)}`;
+      io.to(recipientRoom).emit('message', msg);
       socket.emit('message', msg);
     } else {
       io.to(msg.room).emit('message', msg);
@@ -204,8 +213,23 @@ server.on('error', (error) => {
   throw error;
 });
 
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
+  const os = require('os');
+  const lanUrls = [];
+
+  for (const interfaces of Object.values(os.networkInterfaces())) {
+    for (const net of interfaces || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        lanUrls.push(`http://${net.address}:${port}`);
+      }
+    }
+  }
+
   console.log(`TravelMate API listening on http://localhost:${port}`);
+  if (lanUrls.length) {
+    console.log(`[network] LAN API: ${lanUrls.join(', ')}`);
+    console.log(`[network] LAN frontend (share this): ${lanUrls.map((url) => url.replace(`:${port}`, ':5173')).join(', ')}`);
+  }
   console.log('[architecture] controllers -> services -> repositories');
 });
 
