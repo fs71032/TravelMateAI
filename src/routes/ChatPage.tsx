@@ -56,6 +56,96 @@ function ChatPage() {
       .catch(() => {});
   };
 
+  useEffect(() => {
+    const socket = getNotificationSocket();
+    socketRef.current = socket;
+
+    const identifyChatUser = async (retryOnFailure = false) => {
+      if (!user?.user) return false;
+
+      const accessToken = await ensureFreshAccessToken();
+      if (!accessToken) {
+        setSocketError('Session expired. Please sign in again.');
+        return false;
+      }
+
+      socket.emit('identify', {
+        email: user.user.email,
+        name: user.user.name,
+        accessToken
+      });
+      socket.emit('join', 'global');
+
+      if (!retryOnFailure) {
+        setSocketError('');
+      }
+
+      return true;
+    };
+
+    const handleConnect = () => {
+      setSocketConnected(true);
+      void identifyChatUser();
+    };
+
+    const handleDisconnect = () => setSocketConnected(false);
+
+    const handleMessage = (msg: ChatMessageRecord) => {
+      setSocketError('');
+      if (msg.room === 'global') {
+        setGlobalMessages((current) => appendChatMessage(current, msg));
+        return;
+      }
+      setPrivateMessages((current) => appendChatMessage(current, msg));
+    };
+
+    const handlePresence = (list: any) => setOnline(list || []);
+    const handleIdentifyError = (payload: { message?: string }) => {
+      void (async () => {
+        const recovered = await identifyChatUser();
+        if (!recovered) {
+          setSocketError(payload?.message || 'Could not identify chat session. Sign in again.');
+        }
+      })();
+    };
+    const handleMessageError = (payload: { message?: string }) => {
+      setSocketError(payload?.message || 'Failed to send message.');
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('message', handleMessage);
+    socket.on('presence', handlePresence);
+    socket.on('identify:error', handleIdentifyError);
+    socket.on('message:error', handleMessageError);
+
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('message', handleMessage);
+      socket.off('presence', handlePresence);
+      socket.off('identify:error', handleIdentifyError);
+      socket.off('message:error', handleMessageError);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const recipient = params.get('user');
+    if (recipient) {
+      setSelectedRecipient(normalizeChatEmail(recipient));
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!currentEmail) return;
+    loadGlobalHistory();
+    loadPrivateHistory();
+  }, [currentEmail]);
   return null;
 }
 
