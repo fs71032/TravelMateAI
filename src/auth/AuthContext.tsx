@@ -1,7 +1,8 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import type { AuthResponse } from '../services/authService';
+import { AUTH_UPDATED_EVENT, ensureFreshAccessToken } from '../services/api';
 import { clearSavedPlansCache } from '../services/tripPlanStorage';
-import { identifySocketUser } from '../services/socket';
+import { identifySocketUser, resetNotificationSocket } from '../services/socket';
 
 interface AuthContextValue {
   user: AuthResponse | null;
@@ -61,18 +62,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       localStorage.removeItem(storageKey);
     }
-    try {
-      if (auth?.user) {
+  }, [auth]);
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const stored = readStoredAuth();
+      if (stored) {
+        setAuth(stored);
+      }
+    };
+
+    window.addEventListener(AUTH_UPDATED_EVENT, syncFromStorage);
+    return () => window.removeEventListener(AUTH_UPDATED_EVENT, syncFromStorage);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const identify = async () => {
+      if (!auth?.user) return;
+      try {
+        const accessToken = await ensureFreshAccessToken();
+        if (!active || !accessToken) return;
         identifySocketUser({
           email: auth.user.email,
           name: auth.user.name,
-          accessToken: auth.accessToken
+          accessToken
         });
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-  }, [auth]);
+    };
+
+    void identify();
+    return () => {
+      active = false;
+    };
+  }, [auth?.user?.email, auth?.user?.name, auth?.accessToken]);
 
   const signIn = (authResponse: AuthResponse) => {
     setAuth(authResponse);
@@ -80,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = () => {
     clearSavedPlansCache();
+    resetNotificationSocket();
     setAuth(null);
   };
 
